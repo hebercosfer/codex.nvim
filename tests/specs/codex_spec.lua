@@ -51,6 +51,46 @@ describe('codex.nvim', function()
     assert(cmds['CodexMcp'], 'CodexMcp command not found')
   end)
 
+  it('opens CodexResume as a cwd-scoped resume picker in terminal backend', function()
+    local original_fn = vim.fn
+    local received_cmd
+    local received_opts
+
+    vim.fn = setmetatable({
+      executable = function()
+        return 1
+      end,
+      termopen = function(cmd, opts)
+        received_cmd = cmd
+        received_opts = opts
+        assert(type(opts.on_exit) == 'function', 'termopen should receive on_exit')
+        return 1457
+      end,
+    }, { __index = original_fn })
+
+    require('codex').setup {
+      backend = 'terminal',
+      cmd = 'codex',
+      autoinstall = false,
+      keymaps = {},
+    }
+
+    vim.cmd 'CodexResume'
+
+    assert(received_cmd, 'termopen should be called')
+    eq('codex', received_cmd[1])
+    eq('resume', received_cmd[2])
+    assert(vim.tbl_contains(received_cmd, '--config'), 'vim mode config flag missing')
+    assert(vim.tbl_contains(received_cmd, 'tui.vim_mode_default=true'), 'vim mode default override missing')
+    assert(not vim.tbl_contains(received_cmd, '--last'), 'resume picker should not skip the picker with --last')
+    assert(not vim.tbl_contains(received_cmd, '--all'), 'resume picker should start in cwd-scoped mode, not all-session mode')
+    assert(vim.tbl_contains(received_cmd, '--cd'), 'resume picker should receive an explicit cwd')
+    eq(vim.fn.getcwd(), received_cmd[#received_cmd])
+    eq(vim.fn.getcwd(), received_opts.cwd)
+
+    vim.fn = original_fn
+  end)
+
   it('focuses the Codex session command', function()
     local focused = false
 
@@ -432,7 +472,7 @@ describe('codex.nvim', function()
     vim.fn = original_fn
   end)
 
-  it('resumes the latest workspace session through the remote app-server TUI', function()
+  it('opens the resume picker through the remote app-server TUI', function()
     local original_fn = vim.fn
     local received_cmd
 
@@ -464,17 +504,65 @@ describe('codex.nvim', function()
     }
 
     terminal.open_placeholder()
-    terminal.open_remote('ws://127.0.0.1:45555', nil, { resume_last = true })
+    terminal.open_remote('ws://127.0.0.1:45555', nil, { resume_picker = true })
 
     assert(received_cmd, 'termopen should be called')
     eq('codex', received_cmd[1])
     eq('resume', received_cmd[2])
     assert(vim.tbl_contains(received_cmd, '--config'), 'vim mode config flag missing')
     assert(vim.tbl_contains(received_cmd, 'tui.vim_mode_default=true'), 'vim mode default override missing')
-    assert(vim.tbl_contains(received_cmd, '--last'), 'resume should use --last')
+    assert(not vim.tbl_contains(received_cmd, '--last'), 'resume picker should not skip the picker with --last')
+    assert(not vim.tbl_contains(received_cmd, '--all'), 'resume picker should start in cwd-scoped mode, not all-session mode')
     assert(vim.tbl_contains(received_cmd, '--remote'), 'resume should connect to the remote app-server')
     assert(vim.tbl_contains(received_cmd, 'ws://127.0.0.1:45555'), 'remote url missing')
     assert(vim.tbl_contains(received_cmd, 'gpt-test'), 'configured model should be forwarded to resume')
+    assert(vim.tbl_contains(received_cmd, '--cd'), 'resume should be scoped to the Neovim cwd')
+    eq(vim.fn.getcwd(), received_cmd[#received_cmd])
+
+    vim.fn = original_fn
+  end)
+
+  it('still supports explicit latest workspace resume through the remote app-server TUI', function()
+    local original_fn = vim.fn
+    local received_cmd
+
+    vim.fn = setmetatable({
+      executable = function()
+        return 1
+      end,
+      termopen = function(cmd, opts)
+        received_cmd = cmd
+        assert(type(opts.on_exit) == 'function', 'termopen should receive on_exit')
+        return 458
+      end,
+    }, { __index = original_fn })
+
+    package.loaded['codex.state'] = nil
+    package.loaded['codex.prompt'] = nil
+    package.loaded['codex.terminal'] = nil
+    local terminal = require 'codex.terminal'
+    terminal.setup {
+      cmd = 'codex',
+      model = 'gpt-test',
+      autoinstall = false,
+      keymaps = {},
+      width = 0.25,
+      height = 0.8,
+      border = 'single',
+      panel = false,
+      use_buffer = false,
+    }
+
+    terminal.open_placeholder()
+    terminal.open_remote('ws://127.0.0.1:45555', nil, { resume_last = true })
+
+    assert(received_cmd, 'termopen should be called')
+    eq('codex', received_cmd[1])
+    eq('resume', received_cmd[2])
+    assert(vim.tbl_contains(received_cmd, '--last'), 'explicit latest resume should use --last')
+    assert(not vim.tbl_contains(received_cmd, '--all'), 'latest workspace resume should stay cwd-scoped')
+    assert(vim.tbl_contains(received_cmd, '--remote'), 'resume should connect to the remote app-server')
+    assert(vim.tbl_contains(received_cmd, 'ws://127.0.0.1:45555'), 'remote url missing')
     assert(vim.tbl_contains(received_cmd, '--cd'), 'resume should be scoped to the Neovim cwd')
     eq(vim.fn.getcwd(), received_cmd[#received_cmd])
 

@@ -515,10 +515,12 @@ local function build_cmd_args(config, remote, opts, cwd, session)
   opts = opts or {}
   local cmd_args = util.normalize_cmd(config.cmd)
   if remote and remote.url then
-    if remote.resume_last then
+    if remote.resume_picker or remote.resume_last then
       table.insert(cmd_args, 'resume')
       append_launch_flags(cmd_args, config, opts, session)
-      table.insert(cmd_args, '--last')
+      if remote.resume_last then
+        table.insert(cmd_args, '--last')
+      end
       table.insert(cmd_args, '--remote')
       table.insert(cmd_args, remote.url)
       if config.model then
@@ -536,10 +538,12 @@ local function build_cmd_args(config, remote, opts, cwd, session)
     end
   end
 
-  if opts.resume_last then
+  if opts.resume_picker or opts.resume_last then
     table.insert(cmd_args, 'resume')
     append_launch_flags(cmd_args, config, opts, session)
-    table.insert(cmd_args, '--last')
+    if opts.resume_last then
+      table.insert(cmd_args, '--last')
+    end
   else
     append_launch_flags(cmd_args, config, opts, session)
   end
@@ -749,6 +753,7 @@ function M.open_remote(url, thread_id, opts)
   local remote = {
     url = url,
     thread_id = thread_id,
+    resume_picker = opts.resume_picker == true,
     resume_last = opts.resume_last == true,
   }
   if session then
