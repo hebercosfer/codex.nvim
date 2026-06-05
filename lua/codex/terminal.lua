@@ -515,12 +515,10 @@ local function build_cmd_args(config, remote, opts, cwd, session)
   opts = opts or {}
   local cmd_args = util.normalize_cmd(config.cmd)
   if remote and remote.url then
-    if remote.resume_picker or remote.resume_last then
+    if remote.resume_last then
       table.insert(cmd_args, 'resume')
       append_launch_flags(cmd_args, config, opts, session)
-      if remote.resume_last then
-        table.insert(cmd_args, '--last')
-      end
+      table.insert(cmd_args, '--last')
       table.insert(cmd_args, '--remote')
       table.insert(cmd_args, remote.url)
       if config.model then
@@ -538,12 +536,10 @@ local function build_cmd_args(config, remote, opts, cwd, session)
     end
   end
 
-  if opts.resume_picker or opts.resume_last then
+  if opts.resume_last then
     table.insert(cmd_args, 'resume')
     append_launch_flags(cmd_args, config, opts, session)
-    if opts.resume_last then
-      table.insert(cmd_args, '--last')
-    end
+    table.insert(cmd_args, '--last')
   else
     append_launch_flags(cmd_args, config, opts, session)
   end
@@ -698,7 +694,10 @@ function M.open(opts)
           end
         end
       end,
-      on_exit = function(_, code)
+      on_exit = function(job_id, code)
+        if session_job(session) ~= job_id then
+          return
+        end
         set_session_job(session, nil)
         vim.api.nvim_buf_set_lines(state.buf, -1, -1, false, { ('[Codex exit: %d]'):format(code) })
       end,
@@ -707,7 +706,10 @@ function M.open(opts)
     local ok, job_or_err = pcall(vim.fn.termopen, cmd_args, {
       cwd = cwd,
       env = util.codex_env(),
-      on_exit = function(_, code)
+      on_exit = function(job_id, code)
+        if session_job(session) ~= job_id then
+          return
+        end
         set_session_job(session, nil)
         local app_ctx = state.app_context and state.app_context(session) or state.app
         app_ctx.terminal_opened = false
@@ -750,10 +752,17 @@ function M.open_remote(url, thread_id, opts)
   if not session_requested(session) then
     return false
   end
+  local cwd = opts.cwd or util.cwd()
+  local current_remote = session_remote(session)
+  local current_cwd = session and session.cwd or M.cwd
+  local job = session_job(session)
+  if job and (not current_remote or current_remote.url ~= url or (cwd and current_cwd and current_cwd ~= cwd)) then
+    pcall(vim.fn.jobstop, job)
+    set_session_job(session, nil)
+  end
   local remote = {
     url = url,
     thread_id = thread_id,
-    resume_picker = opts.resume_picker == true,
     resume_last = opts.resume_last == true,
   }
   if session then

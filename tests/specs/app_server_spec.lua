@@ -109,4 +109,65 @@ describe('codex app-server support', function()
 
     app_process.stop()
   end)
+
+  it('launches the remote terminal with cwd so native /resume can toggle cwd and all', function()
+    package.loaded['codex'] = nil
+    package.loaded['codex.app_server'] = nil
+    package.loaded['codex.prompt'] = nil
+    package.loaded['codex.state'] = nil
+    package.loaded['codex.terminal'] = nil
+
+    local stale_dir = '/tmp/codex-nvim-stale-terminal-cwd'
+    local app_dir = '/tmp/codex-nvim-current-app-cwd'
+    vim.fn.mkdir(stale_dir, 'p')
+    vim.fn.mkdir(app_dir, 'p')
+
+    local received_cmd
+    local received_opts
+    local stopped_job
+    vim.fn = setmetatable({
+      executable = function()
+        return 1
+      end,
+      jobstop = function(job)
+        stopped_job = job
+      end,
+      termopen = function(cmd, opts)
+        received_cmd = cmd
+        received_opts = opts
+        return 6201
+      end,
+    }, { __index = original_fn })
+
+    require('codex').setup {
+      backend = 'app_server',
+      cmd = 'codex',
+      autoinstall = false,
+      keymaps = {},
+      app_server = {
+        ui = 'terminal',
+        open_terminal = true,
+      },
+    }
+
+    local state = require 'codex.state'
+    local terminal = require 'codex.terminal'
+    local app_server = require 'codex.app_server'
+    local session = state.create_session()
+    terminal.open_placeholder({ cwd = stale_dir, session = session })
+    session.job = 6199
+    state.sync_active_session()
+    state.app.listen_url = 'ws://127.0.0.1:45555'
+    state.app.cwd = app_dir
+
+    app_server.open_terminal({ session = session })
+
+    eq(6199, stopped_job)
+    assert(received_cmd, 'remote terminal should launch')
+    assert(vim.tbl_contains(received_cmd, '--remote'), 'remote TUI should connect to the app-server')
+    assert(vim.tbl_contains(received_cmd, '--cd'), 'remote TUI should receive an explicit cwd')
+    assert(not vim.tbl_contains(received_cmd, '--all'), 'remote TUI should not force all-session resume mode')
+    eq(app_dir, received_cmd[#received_cmd])
+    eq(app_dir, received_opts.cwd)
+  end)
 end)

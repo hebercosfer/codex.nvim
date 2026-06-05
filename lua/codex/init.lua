@@ -144,7 +144,7 @@ end
 
 function M.resume()
   if config.backend == 'terminal' then
-    terminal.open({ resume_picker = true, insert = true })
+    terminal.open({ resume_last = true, insert = true })
     return
   end
 
@@ -163,7 +163,7 @@ function M.resume()
           return
         end
         if start_ok then
-          app_server.open_terminal(vim.tbl_extend('force', terminal_opts, { resume_picker = true, insert = true }))
+          app_server.open_terminal(vim.tbl_extend('force', terminal_opts, { resume_last = true, insert = true }))
         else
           terminal.show_error(err and (err.message or util.text_content(err)) or 'App Server did not become ready')
         end

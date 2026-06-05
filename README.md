@@ -96,7 +96,7 @@ return {
 
 - `:Codex` opens or toggles Codex. With arguments or a visual range, it sends a prompt.
 - `:CodexToggle` toggles the Codex terminal.
-- `:CodexResume` opens the Codex resume picker scoped to the current workspace. Use the picker to switch between current-workspace and all-session views.
+- `:CodexResume` resumes the most recent Codex session for the current workspace.
 - `:CodexSession` opens and focuses the Codex terminal, entering insert mode when the TUI is running.
 - `:CodexFocus` focuses the Codex terminal and enters insert mode when the TUI is running.
 - `:CodexSend [prompt]` sends a prompt. From visual mode or with a range, a prompt argument submits that prompt with an `@file#Lx-Ly` reference. Without a prompt argument, Codex inserts the reference into the TUI input and does not submit.

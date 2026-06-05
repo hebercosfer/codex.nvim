@@ -168,7 +168,7 @@ function M.setup(active_config, active_api)
 
   vim.api.nvim_create_user_command('CodexResume', function()
     api.resume()
-  end, { desc = 'Open the Codex resume picker for this workspace' })
+  end, { desc = 'Resume the latest Codex session for this workspace' })
 
   vim.api.nvim_create_user_command('CodexSession', function()
     api.focus()

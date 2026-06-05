@@ -708,7 +708,8 @@ function M.open_terminal(opts)
     return
   end
   local ctx = app_context(opts.session)
-  if terminal.open_remote(state.app.listen_url, nil, opts) then
+  local terminal_opts = vim.tbl_extend('force', { cwd = state.app.cwd or util.cwd() }, opts)
+  if terminal.open_remote(state.app.listen_url, nil, terminal_opts) then
     ctx.terminal_opened = true
   end
 end
