@@ -238,7 +238,8 @@ function M.toggle()
       if state.win and vim.api.nvim_win_is_valid(state.win) then
         terminal.close()
       else
-        M.open()
+        -- Opening the toggle drops straight into the Codex prompt, like the Claude float.
+        M.open { insert = true }
       end
       return
     end
