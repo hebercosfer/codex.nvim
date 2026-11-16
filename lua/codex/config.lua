@@ -3,12 +3,12 @@ local M = {}
 M.defaults = {
   backend = 'app_server', -- app_server | terminal
   keymaps = {
-    toggle = '<leader>ac',
-    open = '<leader>aC',
-    session_new = '<leader>an',
-    yolo = '<leader>ay',
+    toggle = '<leader>cc',
+    open = '<leader>cC',
+    session_new = '<leader>cn',
+    yolo = '<leader>cy',
     quit = '<C-q>',
-    send = '<leader>as',
+    send = '<leader>cs',
     interrupt = '<C-c>',
   },
   border = 'single',
@@ -57,8 +57,20 @@ function M.apply(user_config)
     config = vim.tbl_deep_extend('force', config, user_config)
   end
 
+  -- keymaps merges per key: a configured key overrides its default, the rest keep theirs.
+  -- `keymaps = false` maps nothing at all.
+  if config.keymaps == false then
+    config.keymaps = {}
+  end
+
   assert(config.backend == 'app_server' or config.backend == 'terminal', 'backend must be app_server or terminal')
-  assert(type(config.keymaps) == 'table', 'keymaps must be a table')
+  assert(type(config.keymaps) == 'table', 'keymaps must be a table or false')
+  for name, lhs in pairs(config.keymaps) do
+    if lhs == '' then
+      config.keymaps[name] = false
+    end
+    assert(config.keymaps[name] == false or type(config.keymaps[name]) == 'string', 'keymaps.' .. name .. ' must be a string or false')
+  end
   assert(type(config.cmd) == 'string' or type(config.cmd) == 'table', 'cmd must be a string or list')
   validate_number('width', config.width, 0.1, 1)
   validate_number('height', config.height, 0.1, 1)

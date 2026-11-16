@@ -23,6 +23,9 @@ M.version = {
 
 local config = config_module.defaults
 
+-- Global mappings installed by the most recent setup(), as { mode, lhs } pairs.
+local installed_keymaps = {}
+
 local function ensure_cli(callback)
   local resolved_cmd = util.resolve_cmd(config.cmd)
   local check_cmd = util.executable_from_cmd(resolved_cmd)
@@ -59,11 +62,22 @@ function M.setup(user_config)
   app_server.setup(config, M.version:string())
   commands.setup(config, M)
 
+  -- Each setup() call replaces the mappings of the one before it. plugin/codex.lua
+  -- runs a default setup when the plugin loads, so without this its <leader>c
+  -- defaults would survive a configured setup() that omits them.
+  for _, km in ipairs(installed_keymaps) do
+    pcall(vim.keymap.del, km.mode, km.lhs)
+  end
+  installed_keymaps = {}
+
   local function map(mode, lhs, rhs, desc)
     if type(lhs) ~= 'string' or lhs == '' then
       return
     end
     vim.keymap.set(mode, lhs, rhs, { noremap = true, silent = true, desc = desc })
+    for _, m in ipairs(type(mode) == 'table' and mode or { mode }) do
+      table.insert(installed_keymaps, { mode = m, lhs = lhs })
+    end
   end
 
   if config.keymaps then
