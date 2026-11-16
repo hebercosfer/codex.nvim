@@ -333,7 +333,7 @@ describe('codex.nvim', function()
       captured_opts = opts
     end
 
-    require('codex').send('Explain this file')
+    require('codex').send 'Explain this file'
 
     assert(captured_opts and captured_opts.active_context, 'active context should be captured before terminal focus changes')
     eq('/tmp/codex-active-context.lua', captured_opts.active_context.path)
@@ -758,7 +758,7 @@ describe('codex.nvim', function()
       session_list = { width = 24 },
     }
 
-    terminal.open({ new_session = true })
+    terminal.open { new_session = true }
     local first_buf = state.buf
     local first_job = state.job
 
@@ -769,13 +769,16 @@ describe('codex.nvim', function()
     eq(2, #state.session_order)
     eq(2, state.active_session_id)
     local expected_tui_width = math.max(1, math.floor(vim.o.columns * 0.25))
-    assert(vim.wait(500, function()
-      local win = session_win()
-      if not win or vim.api.nvim_win_get_width(win) ~= 7 or vim.api.nvim_win_get_width(state.win) ~= expected_tui_width then
-        return false
-      end
-      return statuscolumn_line(win, 1).str:match '%(1%)' and statuscolumn_line(win, 2).str:match '%(2%)'
-    end, 10), 'session list should be visible: ' .. session_debug())
+    assert(
+      vim.wait(500, function()
+        local win = session_win()
+        if not win or vim.api.nvim_win_get_width(win) ~= 7 or vim.api.nvim_win_get_width(state.win) ~= expected_tui_width then
+          return false
+        end
+        return statuscolumn_line(win, 1).str:match '%(1%)' and statuscolumn_line(win, 2).str:match '%(2%)'
+      end, 10),
+      'session list should be visible: ' .. session_debug()
+    )
     local list_win = session_win()
     local list_lines = session_lines()
     local list_width = vim.api.nvim_win_get_width(list_win)
@@ -809,29 +812,38 @@ describe('codex.nvim', function()
     mouse_win = list_win
     mouse_line = 1
     _G.CodexSessionListClick()
-    assert(vim.wait(500, function()
-      return state.active_session_id == 1
-    end, 10), 'statuscolumn click should select session 1')
+    assert(
+      vim.wait(500, function()
+        return state.active_session_id == 1
+      end, 10),
+      'statuscolumn click should select session 1'
+    )
     eq(1, state.active_session_id)
     eq(state.win, vim.api.nvim_get_current_win())
     assert(not vim.api.nvim_get_mode().mode:match '^[vV\22]', 'session statuscolumn click should not enter visual mode')
 
-    assert(vim.wait(500, function()
-      local win = session_win()
-      if not win then
-        return false
-      end
-      return statuscolumn_line(win, 2).str:match '%(2%)'
-    end, 10), 'session list should refresh after selecting session 1')
+    assert(
+      vim.wait(500, function()
+        local win = session_win()
+        if not win then
+          return false
+        end
+        return statuscolumn_line(win, 2).str:match '%(2%)'
+      end, 10),
+      'session list should refresh after selecting session 1'
+    )
     list_win = session_win()
     eq(false, vim.api.nvim_win_get_option(list_win, 'cursorline'))
     assert(statuscolumn_has_highlight(statuscolumn_line(list_win, 1), 'CodexSessionListActive'), 'selected session 1 should be highlighted')
     mouse_win = list_win
     mouse_line = 2
     _G.CodexSessionListClick()
-    assert(vim.wait(500, function()
-      return state.active_session_id == 2
-    end, 10), 'statuscolumn click should select session 2')
+    assert(
+      vim.wait(500, function()
+        return state.active_session_id == 2
+      end, 10),
+      'statuscolumn click should select session 2'
+    )
     eq(2, state.active_session_id)
     eq(state.win, vim.api.nvim_get_current_win())
     eq(false, vim.api.nvim_win_get_option(list_win, 'cursorline'))
@@ -843,9 +855,9 @@ describe('codex.nvim', function()
     eq(first_job, state.job)
     eq(first_buf, vim.api.nvim_win_get_buf(state.win))
 
-    terminal.send('first')
+    terminal.send 'first'
     terminal.select_session(2, { focus = false })
-    terminal.send('second')
+    terminal.send 'second'
 
     assert(sent[first_job] and sent[first_job]:match 'first', 'first session should receive its prompt')
     assert(sent[second_job] and sent[second_job]:match 'second', 'second session should receive its prompt')
@@ -856,10 +868,12 @@ describe('codex.nvim', function()
     eq(1, state.active_session_id)
     eq(first_buf, state.buf)
     eq(first_buf, vim.api.nvim_win_get_buf(state.win))
-    assert(vim.wait(500, function()
-      local win = session_win()
-      return win and vim.api.nvim_buf_line_count(vim.api.nvim_win_get_buf(win)) == 1 and statuscolumn_line(win, 1).str:match '%(1%)'
-    end, 10), 'session list should shrink after closing a session')
+    assert(
+      vim.wait(500, function()
+        return session_win() == nil
+      end, 10),
+      'session list should hide once only one session remains'
+    )
 
     terminal.close()
     vim.fn = original_fn
@@ -894,7 +908,7 @@ describe('codex.nvim', function()
       use_buffer = false,
     }
 
-    terminal.open({ new_session = true })
+    terminal.open { new_session = true }
     terminal.yolo()
 
     assert(vim.tbl_contains(received_cmds[1], '--config'), 'normal session should include --config')
@@ -980,7 +994,7 @@ describe('codex.nvim', function()
     assert(vim.api.nvim_win_get_option(codex_win, 'wrap'), 'Codex terminal placeholder should wrap')
     eq(0, vim.api.nvim_win_get_option(codex_win, 'sidescrolloff'))
 
-    terminal.open_remote('ws://127.0.0.1:45555')
+    terminal.open_remote 'ws://127.0.0.1:45555'
 
     assert(vim.api.nvim_win_get_option(codex_win, 'wrap'), 'Codex terminal should wrap after termopen')
     eq(0, vim.api.nvim_win_get_option(codex_win, 'sidescrolloff'))
@@ -1010,7 +1024,7 @@ describe('codex.nvim', function()
       use_buffer = false,
     }
 
-    terminal.open_placeholder({ focus = false })
+    terminal.open_placeholder { focus = false }
     local state = require 'codex.state'
     local lines = {}
     for i = 1, 40 do
@@ -1092,7 +1106,7 @@ describe('codex.nvim', function()
       use_buffer = false,
     }
 
-    terminal.open_placeholder({ focus = false })
+    terminal.open_placeholder { focus = false }
     local state = require 'codex.state'
     local lines = {}
     for i = 1, 80 do
@@ -1162,7 +1176,7 @@ describe('codex.nvim', function()
         },
       },
     })
-    terminal.open_remote('ws://127.0.0.1:45555')
+    terminal.open_remote 'ws://127.0.0.1:45555'
 
     assert(received_cmd, 'termopen should be called')
     assert(vim.tbl_contains(received_cmd, '--cd'), 'remote TUI should receive an explicit cwd')
@@ -1207,17 +1221,17 @@ describe('codex.nvim', function()
     vim.api.nvim_buf_set_name(0, '/tmp/codex-visible-reference.lua')
     vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'local a = 1', 'local b = 2', 'return a + b' })
 
-    local items = prompt.injection_items_from_text('Review @/tmp/codex-visible-reference.lua#L2-L3')
+    local items = prompt.injection_items_from_text 'Review @/tmp/codex-visible-reference.lua#L2-L3'
 
     eq(1, #items)
     local text = items[1].content[1].text
     assert(text:match '@/tmp/codex%-visible%-reference%.lua#L2%-L3', 'injection should identify the referenced range')
     assert(text:match 'local b = 2\nreturn a %+ b', 'injection should include the referenced source text')
-    eq(1, #prompt.references('Review @/tmp/codex-visible-\nreference.lua#L2-L3'))
-    eq(1, #prompt.injection_items_from_text('Review /tmp/codex-visible-reference.lua#L1'))
-    eq(1, #prompt.references('Review /tmp/codex-visible-\nreference.lua#L2-L3'))
-    eq(0, #prompt.injection_items_from_text('Review /tmp/codex-visible-reference.lua'))
-    eq(0, #prompt.injection_items_from_text('Review this code after removing the mention'))
+    eq(1, #prompt.references 'Review @/tmp/codex-visible-\nreference.lua#L2-L3')
+    eq(1, #prompt.injection_items_from_text 'Review /tmp/codex-visible-reference.lua#L1')
+    eq(1, #prompt.references 'Review /tmp/codex-visible-\nreference.lua#L2-L3')
+    eq(0, #prompt.injection_items_from_text 'Review /tmp/codex-visible-reference.lua')
+    eq(0, #prompt.injection_items_from_text 'Review this code after removing the mention')
   end)
 
   it('does not inject hidden context when only inserting a selection reference', function()
@@ -1231,14 +1245,14 @@ describe('codex.nvim', function()
     local inserted
     local request_called = false
 
-    app_server.setup({
+    app_server.setup {
       model = nil,
       include_active_buffer_context = false,
       app_server = {
         ui = 'terminal',
         open_terminal = false,
       },
-    })
+    }
     state.app.client = {
       is_running = function()
         return true

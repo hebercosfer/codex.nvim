@@ -276,7 +276,7 @@ function M.refresh()
   if not M.is_open() then
     return
   end
-  if not state.has_sessions or not state.has_sessions() or not valid_win(state.win) then
+  if not state.shows_session_list or not state.shows_session_list() or not valid_win(state.win) then
     M.close()
     return
   end
@@ -294,7 +294,7 @@ end
 function M.open(config, opts)
   opts = opts or {}
   config = config or M.config
-  if not config or not state.has_sessions or not state.has_sessions() or not valid_win(state.win) then
+  if not config or not state.shows_session_list or not state.shows_session_list() or not valid_win(state.win) then
     M.close()
     return nil
   end

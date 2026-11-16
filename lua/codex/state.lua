@@ -141,6 +141,11 @@ function M.has_sessions()
   return #M.session_order > 0
 end
 
+-- The session side panel is only useful once there is something to choose between.
+function M.shows_session_list()
+  return #M.session_order > 1
+end
+
 function M.sync_active_session()
   local session = M.active_session()
   if session then
