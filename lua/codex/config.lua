@@ -11,9 +11,14 @@ M.defaults = {
     send = '<leader>cs',
     interrupt = '<C-c>',
   },
-  border = 'single',
-  width = 0.25,
+  border = 'rounded',
+  title = ' Codex ', -- shown on the float's border; false or '' for none
+  title_pos = 'center', -- left | center | right
+  width = 0.8, -- fraction of the editor (float) or of its columns (panel)
   height = 0.8,
+  min_width = 80, -- cells; the float never gets narrower than this (capped at the editor width)
+  min_height = 24, -- lines; the float never gets shorter than this (capped at the editor height)
+  panel_width = 0.25, -- fraction of the columns when panel = true
   cmd = 'codex',
   model = nil,
   autoinstall = true,
@@ -74,6 +79,11 @@ function M.apply(user_config)
   assert(type(config.cmd) == 'string' or type(config.cmd) == 'table', 'cmd must be a string or list')
   validate_number('width', config.width, 0.1, 1)
   validate_number('height', config.height, 0.1, 1)
+  assert(type(config.min_width) == 'number' and config.min_width >= 1, 'min_width must be at least 1')
+  validate_number('panel_width', config.panel_width, 0.1, 1)
+  assert(config.title == false or type(config.title) == 'string', 'title must be a string or false')
+  assert(config.title_pos == 'left' or config.title_pos == 'center' or config.title_pos == 'right', 'title_pos must be left, center or right')
+  assert(type(config.min_height) == 'number' and config.min_height >= 1, 'min_height must be at least 1')
   assert(type(config.autoinstall) == 'boolean', 'autoinstall must be a boolean')
   assert(type(config.panel) == 'boolean', 'panel must be a boolean')
   assert(type(config.use_buffer) == 'boolean', 'use_buffer must be a boolean')

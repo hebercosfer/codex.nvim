@@ -194,9 +194,18 @@ local function content_width(config)
   return math.max(1, math.floor(vim.o.columns * config.width))
 end
 
+local function panel_width(config)
+  return math.max(1, math.floor(vim.o.columns * (config.panel_width or 0.25)))
+end
+
 local function open_window(config, cwd)
-  local width = content_width(config)
-  local height = math.floor(vim.o.lines * config.height)
+  -- The border is drawn outside the content size, and the command line and status line
+  -- take rows at the bottom; the float is capped so that the whole thing fits on screen.
+  local border_cells = (config.border and config.border ~= 'none') and 2 or 0
+  local max_width = vim.o.columns - border_cells
+  local max_height = vim.o.lines - vim.o.cmdheight - border_cells - (vim.o.laststatus > 0 and 1 or 0)
+  local width = math.min(max_width, math.max(content_width(config), config.min_width or 1))
+  local height = math.min(max_height, math.max(math.floor(vim.o.lines * config.height), config.min_height or 1))
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - width) / 2)
   col = math.max(0, col)
@@ -237,7 +246,7 @@ local function open_window(config, cwd)
 
   local border = type(config.border) == 'string' and styles[config.border] or config.border
 
-  state.win = vim.api.nvim_open_win(state.buf, true, {
+  local float_opts = {
     relative = 'editor',
     width = width,
     height = height,
@@ -245,7 +254,12 @@ local function open_window(config, cwd)
     col = col,
     style = 'minimal',
     border = border,
-  })
+  }
+  if type(config.title) == 'string' and config.title ~= '' then
+    float_opts.title = config.title
+    float_opts.title_pos = config.title_pos or 'center'
+  end
+  state.win = vim.api.nvim_open_win(state.buf, true, float_opts)
   configure_terminal_window(state.win, cwd)
 end
 
@@ -253,7 +267,7 @@ local function open_panel(config, cwd)
   vim.cmd 'botright vertical split'
   local win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(win, state.buf)
-  vim.api.nvim_win_set_width(win, content_width(config))
+  vim.api.nvim_win_set_width(win, panel_width(config))
   state.win = win
   configure_terminal_window(state.win, cwd)
 end

@@ -65,8 +65,13 @@ describe('codex.nvim', function()
     assert(focused, 'CodexSession should focus the Codex terminal')
   end)
 
-  it('defaults panel width to one quarter of the editor', function()
-    eq(0.25, require('codex.config').defaults.width)
+  it('defaults the float to 80% of the editor with a rounded border and a minimum size', function()
+    local defaults = require('codex.config').defaults
+    eq(0.8, defaults.width)
+    eq(0.8, defaults.height)
+    eq('rounded', defaults.border)
+    eq(80, defaults.min_width)
+    eq(24, defaults.min_height)
   end)
 
   it('defaults Codex launch editor environment to nvim', function()

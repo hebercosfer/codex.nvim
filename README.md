@@ -78,7 +78,6 @@ return {
   opts = {
     backend = 'app_server',
     panel = true,
-    width = 0.25,
     track_selection = true,
     app_server = {
       ui = 'terminal',
@@ -160,9 +159,14 @@ require('codex').setup({
   model = nil,
   autoinstall = true,
   panel = false,
-  width = 0.25,
+  width = 0.8, -- fraction of the editor for the floating window
   height = 0.8,
-  border = 'single',
+  min_width = 80, -- cells; the float never gets narrower (capped at the editor)
+  min_height = 24, -- lines; the float never gets shorter (capped at the editor)
+  panel_width = 0.25, -- fraction of the columns when panel = true
+  border = 'rounded',
+  title = ' Codex ', -- centered on the float's border; false for none
+  title_pos = 'center',
   track_selection = true,
   include_active_buffer_context = true,
   visual_demotion_delay_ms = 50,
