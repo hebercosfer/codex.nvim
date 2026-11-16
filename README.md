@@ -117,10 +117,12 @@ return {
 
 Mappings are configurable through `setup({ keymaps = ... })`. Only the keys you set are overridden; omitted keys keep their defaults. Set an individual entry to `false` or `''` to skip that mapping, or set `keymaps = false` to install no mappings at all.
 
+Inside the Codex window the leader mappings are disabled, in normal and terminal mode alike; `<C-q>` is the way out.
+
 | Mapping | Modes | Config key | Action |
 | --- | --- | --- | --- |
-| `<leader>cc` | Normal, Terminal | `keymaps.toggle` | Toggle the Codex pane without changing the selected session. |
-| `<leader>cC` | Normal, Terminal | `keymaps.open` | Toggle the Codex pane. If sessions already exist, this does not create a new one. |
+| `<leader>cc` | Normal | `keymaps.toggle` | Toggle the Codex pane without changing the selected session. |
+| `<leader>cC` | Normal | `keymaps.open` | Toggle the Codex pane. If sessions already exist, this does not create a new one. |
 | `<leader>cs` | Normal, Visual | `keymaps.send` | Send the prompt or selected range to the currently selected session. |
 | `<leader>cn` | Normal | `keymaps.session_new` | Open a new numbered Codex session. |
 | `<leader>cy` | Normal | `keymaps.yolo` | Open a new Codex session with YOLO mode. |

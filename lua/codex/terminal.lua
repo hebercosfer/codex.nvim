@@ -161,6 +161,23 @@ local function create_clean_buf(config)
     vim.api.nvim_buf_set_keymap(buf, 't', config.keymaps.quit, [[<C-\><C-n>]] .. quit_cmd, { noremap = true, silent = true })
     vim.api.nvim_buf_set_keymap(buf, 'n', config.keymaps.quit, quit_cmd, { noremap = true, silent = true })
   end
+  -- Inside the Codex window only the quit key leaves it: the global leader mappings
+  -- are disabled here so that e.g. <leader>cc does not close the window.
+  local leader_maps = {
+    { modes = { 'n' }, name = 'toggle' },
+    { modes = { 'n' }, name = 'open' },
+    { modes = { 'n', 'v' }, name = 'send' },
+    { modes = { 'n' }, name = 'session_new' },
+    { modes = { 'n' }, name = 'yolo' },
+  }
+  for _, entry in ipairs(leader_maps) do
+    local lhs = config.keymaps[entry.name]
+    if type(lhs) == 'string' and lhs ~= '' and lhs ~= config.keymaps.quit then
+      for _, mode in ipairs(entry.modes) do
+        vim.api.nvim_buf_set_keymap(buf, mode, lhs, '<Nop>', { noremap = true, silent = true })
+      end
+    end
+  end
   vim.api.nvim_buf_set_keymap(buf, 't', '<CR>', [[<C-\><C-n><cmd>lua require('codex.terminal').submit()<CR>]], {
     noremap = true,
     silent = true,

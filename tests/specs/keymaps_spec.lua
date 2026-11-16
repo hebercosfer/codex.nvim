@@ -125,3 +125,51 @@ describe('keymaps setup', function()
     end
   end)
 end)
+
+describe('codex window keymaps', function()
+  local original_fn
+
+  before_each(function()
+    original_fn = vim.fn
+    vim.fn = setmetatable({
+      executable = function()
+        return 1
+      end,
+      termopen = function()
+        return 901
+      end,
+    }, { __index = original_fn })
+    for _, module in ipairs { 'codex', 'codex.app_server', 'codex.commands', 'codex.config', 'codex.state', 'codex.terminal', 'codex.ui' } do
+      package.loaded[module] = nil
+    end
+    vim.cmd 'silent! only!'
+    vim.cmd 'enew'
+  end)
+
+  after_each(function()
+    vim.fn = original_fn
+    pcall(require('codex').close)
+  end)
+
+  it('keeps leader mappings out of terminal mode', function()
+    require('codex').setup { backend = 'terminal', autoinstall = false, panel = false, keymaps = { toggle = '<leader>xc' } }
+    assert(vim.fn.maparg('<leader>xc', 't') == '', 'toggle should not be mapped in terminal mode')
+  end)
+
+  it('disables leader mappings inside the Codex window but keeps <C-q> to leave', function()
+    require('codex').setup { backend = 'terminal', autoinstall = false, panel = false }
+    vim.cmd 'CodexToggle'
+    local buf = vim.api.nvim_get_current_buf()
+    local nop, quit = 0, false
+    for _, map in ipairs(vim.api.nvim_buf_get_keymap(buf, 'n')) do
+      if map.rhs == '' or map.rhs == '<Nop>' then -- neovim reports <Nop> as an empty rhs
+        nop = nop + 1
+      elseif map.rhs:find('close()', 1, true) then
+        quit = true
+      end
+    end
+    -- toggle, open, send, session_new and yolo are all disabled in the Codex window.
+    eq(5, nop)
+    assert(quit, '<C-q> should stay mapped to close the Codex window')
+  end)
+end)

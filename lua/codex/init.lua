@@ -81,8 +81,8 @@ function M.setup(user_config)
   end
 
   if config.keymaps then
-    map({ 'n', 't' }, config.keymaps.toggle, '<cmd>CodexToggle<CR>', 'Toggle Codex')
-    map({ 'n', 't' }, config.keymaps.open, '<cmd>CodexToggle<CR>', 'Toggle Codex')
+    map('n', config.keymaps.toggle, '<cmd>CodexToggle<CR>', 'Toggle Codex')
+    map('n', config.keymaps.open, '<cmd>CodexToggle<CR>', 'Toggle Codex')
     map({ 'n', 'v' }, config.keymaps.send, '<cmd>CodexSend<CR>', 'Send selection to Codex')
     map('n', config.keymaps.session_new, '<cmd>CodexSession new<CR>', 'New Codex session')
     map('n', config.keymaps.yolo, '<cmd>CodexYolo<CR>', 'New Codex YOLO session')
