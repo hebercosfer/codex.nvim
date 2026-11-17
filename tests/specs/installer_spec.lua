@@ -1,5 +1,3 @@
-local a = require 'plenary.async.tests'
-
 if vim.env.CI then
   describe('installer_spec', function()
     pending 'Skipping installer_spec in CI due to unreliable global path availability'
@@ -22,7 +20,7 @@ describe('codex.nvim cold start installer flow', function()
     end
 
     -- Stub UI select to simulate choosing npm
-    vim.ui.select = function(items, _, on_choice)
+    vim.ui.select = function(_items, _, on_choice)
       on_choice 'npm'
     end
   end)

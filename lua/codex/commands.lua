@@ -114,7 +114,7 @@ local function show_mcp()
     end
 
     ui.open()
-    ui.append_block('MCP servers:')
+    ui.append_block 'MCP servers:'
     for _, server in ipairs(servers or {}) do
       local tools_count = 0
       for _ in pairs(server.tools or {}) do
@@ -179,18 +179,23 @@ function M.setup(active_config, active_api)
   end, { desc = 'Focus the Codex terminal' })
 
   vim.api.nvim_create_user_command('CodexSend', send_with_prompt, { desc = 'Send prompt or selected range to Codex', nargs = '*', range = true })
-  vim.api.nvim_create_user_command('CodexAdd', add_context, { desc = 'Add file, directory, or selection as Codex context', nargs = '*', complete = 'file', range = true })
+  vim.api.nvim_create_user_command(
+    'CodexAdd',
+    add_context,
+    { desc = 'Add file, directory, or selection as Codex context', nargs = '*', complete = 'file', range = true }
+  )
 
   vim.api.nvim_create_user_command('CodexSession', function(opts)
     local target = opts.args and opts.args ~= '' and opts.args or nil
     if not target then
-      logger.warn 'Usage: CodexSession new|{number}'
+      -- Bare :CodexSession opens and focuses the terminal, as the README describes.
+      api.focus()
       return
     end
     api.session(target)
   end, {
     desc = 'Create or select a Codex terminal session',
-    nargs = 1,
+    nargs = '?',
     complete = function()
       local state = require 'codex.state'
       local items = { 'new' }

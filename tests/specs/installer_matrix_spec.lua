@@ -1,4 +1,3 @@
-local a = require 'plenary.async.tests'
 local eq = assert.equals
 
 describe('codex.nvim multi-installer matrix flow', function()
@@ -32,6 +31,14 @@ describe('codex.nvim multi-installer matrix flow', function()
     local available = installer.detect_available_package_managers()
     assert(#available > 0, 'No package managers available for test')
 
+    local success_pms = {
+      npm = true,
+      pnpm = true,
+      yarn = true,
+      bun = true,
+      deno = true,
+    }
+
     for _, pm in ipairs(available) do
       local triggered = false
 
@@ -55,13 +62,7 @@ describe('codex.nvim multi-installer matrix flow', function()
         end
       end
 
-      local success_pms = {
-        npm = true,
-        pnpm = true,
-        yarn = true,
-        bun = true,
-        deno = true,
-      }
+      eq(success_pms[pm] == true, triggered)
 
       if not success_pms[pm] then
         assert(found_notice, 'Failure should notify for ' .. pm)

@@ -267,18 +267,22 @@ function M.update_selection()
       selection = M.state.latest_selection
       if not M.state.demotion_timer then
         M.state.demotion_timer = vim.loop.new_timer()
-        M.state.demotion_timer:start(M.state.visual_demotion_delay_ms, 0, vim.schedule_wrap(function()
-          if M.state.demotion_timer then
-            M.state.demotion_timer:stop()
-            M.state.demotion_timer:close()
-            M.state.demotion_timer = nil
-          end
-          M.state.last_active_visual_selection = nil
-          local cursor_selection = M.get_cursor_position()
-          if M.has_selection_changed(cursor_selection) then
-            M.state.latest_selection = cursor_selection
-          end
-        end))
+        M.state.demotion_timer:start(
+          M.state.visual_demotion_delay_ms,
+          0,
+          vim.schedule_wrap(function()
+            if M.state.demotion_timer then
+              M.state.demotion_timer:stop()
+              M.state.demotion_timer:close()
+              M.state.demotion_timer = nil
+            end
+            M.state.last_active_visual_selection = nil
+            local cursor_selection = M.get_cursor_position()
+            if M.has_selection_changed(cursor_selection) then
+              M.state.latest_selection = cursor_selection
+            end
+          end)
+        )
       end
     else
       selection = M.get_cursor_position()

@@ -295,9 +295,9 @@ local function on_request(msg, respond)
   elseif method == 'mcpServer/elicitation/request' then
     approvals.mcp_elicitation(params, respond)
   elseif method == 'applyPatchApproval' then
-    respond({ decision = 'denied' })
+    respond { decision = 'denied' }
   elseif method == 'execCommandApproval' then
-    respond({ decision = 'denied' })
+    respond { decision = 'denied' }
   elseif method == 'account/chatgptAuthTokens/refresh' then
     respond(nil, { code = -32601, message = 'Externally managed ChatGPT tokens are not configured by codex.nvim' })
   else
@@ -614,7 +614,7 @@ function M.send(prompt, opts)
     if terminal_ui() then
       if opts.submit == false then
         terminal.insert(prompt, vim.tbl_extend('force', opts, { focus = false }))
-        M.open_terminal({ focus = false, session = opts.session })
+        M.open_terminal { focus = false, session = opts.session }
       elseif ctx.thread_id then
         local input = build_input(prompt, opts, ctx)
         local prompt_text = input[1] and input[1].text or prompt
@@ -628,7 +628,7 @@ function M.send(prompt, opts)
           table.insert(ctx.pending_injections, item)
         end
         table.insert(ctx.pending_sends, input)
-        M.open_terminal({ session = opts.session })
+        M.open_terminal { session = opts.session }
       end
       return
     end
@@ -812,15 +812,20 @@ function M.list_skills(callback)
 end
 
 function M.list_mcp(callback)
-  request_all('mcpServerStatus/list', {
-    limit = 100,
-    detail = M.config.app_server.mcp_status_detail or 'toolsAndAuthOnly',
-  }, 'data', function(servers, err)
-    if servers then
-      state.app.mcp_servers = servers
+  request_all(
+    'mcpServerStatus/list',
+    {
+      limit = 100,
+      detail = M.config.app_server.mcp_status_detail or 'toolsAndAuthOnly',
+    },
+    'data',
+    function(servers, err)
+      if servers then
+        state.app.mcp_servers = servers
+      end
+      callback(servers, err)
     end
-    callback(servers, err)
-  end)
+  )
 end
 
 function M.reload_mcp(callback)

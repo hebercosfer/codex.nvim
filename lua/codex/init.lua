@@ -158,7 +158,7 @@ end
 
 function M.resume()
   if config.backend == 'terminal' then
-    terminal.open({ resume_last = true, insert = true })
+    terminal.open { resume_last = true, insert = true }
     return
   end
 
@@ -188,13 +188,13 @@ end
 
 function M.focus()
   if config.backend == 'terminal' then
-    terminal.focus({ insert = true })
+    terminal.focus { insert = true }
     return
   end
 
   if config.app_server.ui == 'terminal' then
     if state.win and vim.api.nvim_win_is_valid(state.win) then
-      terminal.focus({ insert = true })
+      terminal.focus { insert = true }
       return
     end
     local terminal_opts = { focus = true }
@@ -292,7 +292,7 @@ function M.send(prompt, opts)
   local preserve_focus = config.backend == 'app_server' and config.app_server.ui == 'terminal' and send_opts.submit == false
 
   if config.backend == 'terminal' then
-    terminal.open({ focus = send_opts.submit ~= false })
+    terminal.open { focus = send_opts.submit ~= false }
     if send_opts.submit == false then
       terminal.insert(prompt, send_opts)
     else

@@ -38,16 +38,7 @@ function M.references(text)
     end
 
     if path and start_line then
-      if
-        not has_marker
-        and not (
-          path:match '^/'
-          or path:match '^~/'
-          or path:match '^%./'
-          or path:match '^%.%./'
-          or path:match '/'
-        )
-      then
+      if not has_marker and not (path:match '^/' or path:match '^~/' or path:match '^%./' or path:match '^%.%./' or path:match '/') then
         return
       end
       local key = ('%s:%s:%s'):format(path, start_line, end_line or start_line)

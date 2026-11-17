@@ -257,7 +257,7 @@ function M.render_notification(msg)
     if turn.status == 'failed' and turn.error then
       M.append_block('Turn failed:', util.text_content(turn.error))
     else
-      M.append('')
+      M.append ''
     end
   elseif method == 'thread/status/changed' then
     M.append(('Thread status: %s'):format(tostring(params.status)))

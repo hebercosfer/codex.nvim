@@ -154,13 +154,13 @@ describe('codex app-server support', function()
     local terminal = require 'codex.terminal'
     local app_server = require 'codex.app_server'
     local session = state.create_session()
-    terminal.open_placeholder({ cwd = stale_dir, session = session })
+    terminal.open_placeholder { cwd = stale_dir, session = session }
     session.job = 6199
     state.sync_active_session()
     state.app.listen_url = 'ws://127.0.0.1:45555'
     state.app.cwd = app_dir
 
-    app_server.open_terminal({ session = session })
+    app_server.open_terminal { session = session }
 
     eq(6199, stopped_job)
     assert(received_cmd, 'remote terminal should launch')

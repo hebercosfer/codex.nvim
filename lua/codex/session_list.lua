@@ -40,11 +40,14 @@ end
 local function setup_highlights()
   default_link('CodexSessionListBase', 'Normal')
   default_link('CodexSessionListInactive', 'Comment')
-  default_link('CodexSessionListActive', highlight_with_background {
-    'PmenuSel',
-    'Visual',
-    'TabLineSel',
-  })
+  default_link(
+    'CodexSessionListActive',
+    highlight_with_background {
+      'PmenuSel',
+      'Visual',
+      'TabLineSel',
+    }
+  )
 end
 
 local function valid_win(win)

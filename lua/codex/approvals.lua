@@ -51,21 +51,26 @@ function M.command(params, respond)
   end
 
   select_decision(prompt, choices, 'cancel', function(decision)
-    respond({ decision = decision })
+    respond { decision = decision }
   end)
 end
 
 function M.file_change(params, respond)
   local detail = params.grantRoot and (' under ' .. params.grantRoot) or ''
   local reason = params.reason and ('\n' .. params.reason) or ''
-  select_decision('Allow file changes' .. detail .. '?' .. reason, {
-    { label = 'Accept', value = 'accept' },
-    { label = 'Accept for session', value = 'acceptForSession' },
-    { label = 'Decline', value = 'decline' },
-    { label = 'Cancel', value = 'cancel' },
-  }, 'cancel', function(decision)
-    respond({ decision = decision })
-  end)
+  select_decision(
+    'Allow file changes' .. detail .. '?' .. reason,
+    {
+      { label = 'Accept', value = 'accept' },
+      { label = 'Accept for session', value = 'acceptForSession' },
+      { label = 'Decline', value = 'decline' },
+      { label = 'Cancel', value = 'cancel' },
+    },
+    'cancel',
+    function(decision)
+      respond { decision = decision }
+    end
+  )
 end
 
 local function ask_question(question, cb)
@@ -107,13 +112,13 @@ function M.user_input(params, respond)
   local function step(index)
     local question = questions[index]
     if not question then
-      respond({ answers = answers })
+      respond { answers = answers }
       return
     end
 
     ask_question(question, function(answer)
       if answer == nil then
-        respond({ answers = answers })
+        respond { answers = answers }
         return
       end
       answers[question.id] = { answers = { answer } }
@@ -152,13 +157,13 @@ function M.mcp_elicitation(params, respond)
         else
           vim.fn.jobstart({ 'xdg-open', params.url }, { detach = true })
         end
-        respond({ action = 'accept', content = nil, _meta = nil })
+        respond { action = 'accept', content = nil, _meta = nil }
       elseif choice == 'Accept' then
-        respond({ action = 'accept', content = nil, _meta = nil })
+        respond { action = 'accept', content = nil, _meta = nil }
       elseif choice == 'Decline' then
-        respond({ action = 'decline', content = nil, _meta = nil })
+        respond { action = 'decline', content = nil, _meta = nil }
       else
-        respond({ action = 'cancel', content = nil, _meta = nil })
+        respond { action = 'cancel', content = nil, _meta = nil }
       end
     end)
     return
@@ -176,7 +181,7 @@ function M.mcp_elicitation(params, respond)
   local function step(index)
     local key = keys[index]
     if not key then
-      respond({ action = 'accept', content = content, _meta = nil })
+      respond { action = 'accept', content = content, _meta = nil }
       return
     end
 
@@ -184,7 +189,7 @@ function M.mcp_elicitation(params, respond)
     local prompt = prop.title or prop.description or key
     vim.ui.input({ prompt = prompt, default = default_for_schema(prop) }, function(value)
       if value == nil then
-        respond({ action = 'cancel', content = nil, _meta = nil })
+        respond { action = 'cancel', content = nil, _meta = nil }
         return
       end
       content[key] = coerce_schema_value(prop, value)

@@ -90,7 +90,7 @@ end
 
 local function create_session(opts)
   if type(state.create_session) == 'function' then
-    return state.create_session({ yolo = opts and opts.yolo })
+    return state.create_session { yolo = opts and opts.yolo }
   end
   return nil
 end
@@ -367,21 +367,25 @@ function M.schedule_autoscroll(check_current_position, allow_current_focus)
   M.cancel_autoscroll()
   local timer = vim.loop.new_timer()
   autoscroll.timer = timer
-  timer:start(M.__test_autoscroll_delay_ms or auto_scroll_delay_ms, 0, vim.schedule_wrap(function()
-    if autoscroll.timer == timer then
-      autoscroll.timer = nil
-    end
-    timer:stop()
-    timer:close()
+  timer:start(
+    M.__test_autoscroll_delay_ms or auto_scroll_delay_ms,
+    0,
+    vim.schedule_wrap(function()
+      if autoscroll.timer == timer then
+        autoscroll.timer = nil
+      end
+      timer:stop()
+      timer:close()
 
-    if not autoscroll.pending then
-      return
-    end
-    if codex_focused() then
-      return
-    end
-    scroll_to_bottom()
-  end))
+      if not autoscroll.pending then
+        return
+      end
+      if codex_focused() then
+        return
+      end
+      scroll_to_bottom()
+    end)
+  )
 end
 
 local function on_terminal_lines(before_line_count)
@@ -701,38 +705,41 @@ function M.open(opts)
   local cmd_args = build_cmd_args(config, session_remote(session), opts, cwd, session)
 
   if config.use_buffer then
-    set_session_job(session, vim.fn.jobstart(cmd_args, {
-      cwd = cwd,
-      env = util.codex_env(),
-      stdout_buffered = true,
-      on_stdout = function(_, data)
-        if not data then
-          return
-        end
-        for _, line in ipairs(data) do
-          if line ~= '' then
-            vim.api.nvim_buf_set_lines(state.buf, -1, -1, false, { line })
+    set_session_job(
+      session,
+      vim.fn.jobstart(cmd_args, {
+        cwd = cwd,
+        env = util.codex_env(),
+        stdout_buffered = true,
+        on_stdout = function(_, data)
+          if not data then
+            return
           end
-        end
-      end,
-      on_stderr = function(_, data)
-        if not data then
-          return
-        end
-        for _, line in ipairs(data) do
-          if line ~= '' then
-            vim.api.nvim_buf_set_lines(state.buf, -1, -1, false, { '[ERR] ' .. line })
+          for _, line in ipairs(data) do
+            if line ~= '' then
+              vim.api.nvim_buf_set_lines(state.buf, -1, -1, false, { line })
+            end
           end
-        end
-      end,
-      on_exit = function(job_id, code)
-        if session_job(session) ~= job_id then
-          return
-        end
-        set_session_job(session, nil)
-        vim.api.nvim_buf_set_lines(state.buf, -1, -1, false, { ('[Codex exit: %d]'):format(code) })
-      end,
-    }))
+        end,
+        on_stderr = function(_, data)
+          if not data then
+            return
+          end
+          for _, line in ipairs(data) do
+            if line ~= '' then
+              vim.api.nvim_buf_set_lines(state.buf, -1, -1, false, { '[ERR] ' .. line })
+            end
+          end
+        end,
+        on_exit = function(job_id, code)
+          if session_job(session) ~= job_id then
+            return
+          end
+          set_session_job(session, nil)
+          vim.api.nvim_buf_set_lines(state.buf, -1, -1, false, { ('[Codex exit: %d]'):format(code) })
+        end,
+      })
+    )
   else
     local ok, job_or_err = pcall(vim.fn.termopen, cmd_args, {
       cwd = cwd,
@@ -814,9 +821,13 @@ end
 function M.send(prompt, opts)
   opts = opts or {}
   local session = opts.session or active_session()
-  local text = prompt_builder.terminal(prompt, vim.tbl_extend('force', opts, {
-    pending_context = state.app_context and state.app_context(session).pending_context or nil,
-  }), M.config)
+  local text = prompt_builder.terminal(
+    prompt,
+    vim.tbl_extend('force', opts, {
+      pending_context = state.app_context and state.app_context(session).pending_context or nil,
+    }),
+    M.config
+  )
   if text == '' then
     return false
   end
@@ -930,7 +941,7 @@ end
 
 function M.open_placeholder(opts)
   opts = opts or {}
-  local session = resolve_session(opts) or ensure_session({ yolo = opts.yolo })
+  local session = resolve_session(opts) or ensure_session { yolo = opts.yolo }
   local cwd = opts.cwd or util.cwd()
   M.cwd = cwd
   if session then
