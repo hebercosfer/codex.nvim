@@ -4,6 +4,12 @@
 
 The result is a terminal-first workflow with IDE context. Visual selections are inserted as compact file-range references, visible references are resolved into hidden source context when the prompt is submitted, and Neovim-originated prompts include active-buffer context. Codex apps, skills, MCP servers, approvals, and model selection continue to come from the normal Codex configuration and App Server APIs.
 
+## About this plugin
+
+codex.nvim started as [johnseth97/codex.nvim](https://github.com/johnseth97/codex.nvim), the original Neovim plugin for OpenAI Codex. [coalio/codex.nvim](https://github.com/coalio/codex.nvim), by Coal, continues that work and provides the App Server integration this plugin is built on. This repository is a fork of coalio's project, maintained by Heber Costa Ferreira as [hebercosfer/codex.nvim](https://github.com/hebercosfer/codex.nvim). Credit to johnseth97 and Coal for the foundation.
+
+The fork is being improved to track the latest Codex releases and to integrate more closely with Neovim. [coder/claudecode.nvim](https://github.com/coder/claudecode.nvim) is the reference for how a Neovim plugin wraps a coding agent's CLI: its terminal handling, its keymaps and its compatibility checks.
+
 ## Features
 
 - Terminal UI backed by a local App Server WebSocket transport.
