@@ -38,6 +38,7 @@ jobs:
   pins:
     name: read the pins
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       neovim: ${{ steps.read.outputs.neovim }}
       codex: ${{ steps.read.outputs.codex }}
@@ -63,6 +64,7 @@ jobs:
     name: pinned codex ${{ matrix.codex }} (nvim ${{ matrix.neovim }})
     needs: pins
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -118,6 +120,7 @@ jobs:
     # shipped today.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # A nightly Neovim break is Neovim's news, not ours.
     continue-on-error: ${{ matrix.neovim == 'nightly' }}
     strategy:
@@ -170,6 +173,7 @@ jobs:
     needs: pins
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       report: ${{ steps.compare.outputs.report }}
     steps:
@@ -200,6 +204,7 @@ jobs:
     # Only the scheduled run files an issue. Failures on a PR are already visible on the PR.
     if: failure() && github.event_name == 'schedule'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: write
