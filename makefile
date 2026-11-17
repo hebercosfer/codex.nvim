@@ -31,7 +31,7 @@ test-codex:
 coverage:
 	@bash -c 'mkdir -p /tmp/codex-nvim-empty-config && \
 	  if command -v luarocks >/dev/null 2>&1; then eval "$$(luarocks --lua-version=5.1 path --bin)"; fi && \
-	  XDG_CONFIG_HOME=/tmp/codex-nvim-empty-config nvim --headless -u tests/minimal_init.lua -c "luafile tests/run_cov.lua" || exit 0 && \
+	  XDG_CONFIG_HOME=/tmp/codex-nvim-empty-config nvim --headless -u tests/minimal_init.lua -c "luafile tests/run_cov.lua" && \
 	  if [ -f luacov.stats.out ]; then \
 	    echo "::group::Coverage"; \
 	    luacov -t LcovReporter > lcov.info; \

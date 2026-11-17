@@ -101,12 +101,21 @@ jobs:
   release:
     name: Semantic Release
     runs-on: ubuntu-latest
-    needs: Run tests with coverage
+    needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Creates the tag, the GitHub release and the notes on it, and comments on the
+    # merged pull requests it shipped.
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          # semantic-release reads the existing tags to find the last release.
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
