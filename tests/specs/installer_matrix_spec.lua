@@ -1,7 +1,16 @@
 local eq = assert.equals
+local os_module = os -- a local alias: luacheck reports assigning to the os global
 
 describe('codex.nvim multi-installer matrix flow', function()
+  local orig_execute
+
   before_each(function()
+    -- detect_available_package_managers runs `corepack enable` for real; keep the test from
+    -- changing the machine (or waiting on corepack's prompts) on a CI runner.
+    orig_execute = os_module.execute
+    os_module.execute = function()
+      return 0
+    end
     vim.cmd 'set noswapfile'
     vim.cmd 'silent! bwipeout!'
 
@@ -70,5 +79,8 @@ describe('codex.nvim multi-installer matrix flow', function()
         assert(not found_notice, 'Should not show failure notice for successful PM: ' .. pm)
       end
     end
+  end)
+  after_each(function()
+    os_module.execute = orig_execute
   end)
 end)

@@ -1,12 +1,13 @@
-if vim.env.CI then
-  describe('installer_spec', function()
-    pending 'Skipping installer_spec in CI due to unreliable global path availability'
-  end)
-  return
-end
-
+local os_module = os -- a local alias: luacheck reports assigning to the os global
 describe('codex.nvim cold start installer flow', function()
+  local orig_execute
+
   before_each(function()
+    -- Same as installer_matrix_spec: no real corepack calls on the machine running the suite.
+    orig_execute = os_module.execute
+    os_module.execute = function()
+      return 0
+    end
     vim.cmd 'set noswapfile'
 
     -- Mock termopen to simulate successful install
@@ -44,5 +45,8 @@ describe('codex.nvim cold start installer flow', function()
 
     codex.close()
     assert(not vim.api.nvim_win_is_valid(win), 'Codex window should be closed')
+  end)
+  after_each(function()
+    os_module.execute = orig_execute
   end)
 end)
