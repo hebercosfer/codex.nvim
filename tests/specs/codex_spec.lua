@@ -188,6 +188,9 @@ describe('codex.nvim', function()
 
   it('resolves bare commands through the user shell when Neovim PATH does not contain them', function()
     local original_fn = vim.fn
+    -- The shell lookup reads $SHELL, so pin it: the test must not depend on the runner's environment.
+    local original_shell = vim.env.SHELL
+    vim.env.SHELL = '/bin/sh'
     local shell_checked = false
 
     vim.fn = setmetatable({
@@ -219,6 +222,9 @@ describe('codex.nvim', function()
 
   it('starts the terminal with a shell-resolved Codex executable', function()
     local original_fn = vim.fn
+    -- The shell lookup reads $SHELL, so pin it: the test must not depend on the runner's environment.
+    local original_shell = vim.env.SHELL
+    vim.env.SHELL = '/bin/sh'
     local received_cmd
 
     vim.fn = setmetatable({

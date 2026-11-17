@@ -18,10 +18,11 @@ CODEX_BIN ?= codex
 .PHONY: test test-codex coverage coverage-update clean install-deps
 
 # Unit specs only: they stub termopen and never start a Codex or Claude process.
+# tests/bin holds a stand-in `codex`, so a missing CLI on the machine never starts an install prompt.
 test:
 	@bash -c 'mkdir -p /tmp/codex-nvim-empty-config && \
 	  if command -v luarocks >/dev/null 2>&1; then eval "$$(luarocks --lua-version=5.1 path)"; fi && \
-	  PLENARY_DIR=$(PLENARY_DIR) XDG_CONFIG_HOME=/tmp/codex-nvim-empty-config \
+	  PATH="$(CURDIR)/tests/bin:$$PATH" PLENARY_DIR=$(PLENARY_DIR) XDG_CONFIG_HOME=/tmp/codex-nvim-empty-config \
 	  nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests/specs/ { minimal_init = '\''tests/minimal_init.lua'\'', sequential = true }"'
 
 # Contract spec against a real `codex app-server`: CLI flags and the initialize handshake.
@@ -39,7 +40,7 @@ coverage:
 	@bash -c 'mkdir -p /tmp/codex-nvim-empty-config && \
 	  if command -v luarocks >/dev/null 2>&1; then eval "$$(luarocks --lua-version=5.1 path)"; fi && \
 	  rm -f luacov.stats.out luacov.report.out lcov.info && \
-	  CODEX_LUACOV=1 PLENARY_DIR=$(PLENARY_DIR) XDG_CONFIG_HOME=/tmp/codex-nvim-empty-config \
+	  PATH="$(CURDIR)/tests/bin:$$PATH" CODEX_LUACOV=1 PLENARY_DIR=$(PLENARY_DIR) XDG_CONFIG_HOME=/tmp/codex-nvim-empty-config \
 	  nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests/specs/ { minimal_init = '\''tests/minimal_init.lua'\'', sequential = true }" && \
 	  luacov && \
 	  total=$$(awk '\''/^Total/ {gsub("%", "", $$NF); print $$NF}'\'' luacov.report.out) && \

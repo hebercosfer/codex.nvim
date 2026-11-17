@@ -1,4 +1,6 @@
 vim.cmd 'set rtp+=.'
+-- Swap files would need a writable state directory; the specs do not need them.
+vim.opt.swapfile = false
 
 -- plenary.nvim: $PLENARY_DIR (set by CI and `make test-*`), then the usual install locations.
 local function find_plenary()
@@ -19,7 +21,9 @@ end
 
 vim.opt.runtimepath:append(find_plenary())
 vim.opt.runtimepath:append(vim.fn.getcwd())
-pcall(require, 'plugin.codex')
+-- plugin/codex.lua is deliberately not loaded here: its default setup() offers to install the
+-- Codex CLI when it is missing, and that prompt blocks headless Neovim forever on a CI runner.
+-- Each spec calls setup() with the options it needs.
 
 -- Coverage. Plenary runs each spec file in a child Neovim, so the recording has to start in
 -- every child that loads this file, not only in the runner. Set CODEX_LUACOV=1 (make coverage does).

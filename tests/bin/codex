@@ -1,0 +1,5 @@
+#!/bin/sh
+# Stand-in for the Codex CLI in the unit suite. The specs stub the processes they start; this
+# only makes `codex` resolve on PATH, so the plugin never offers to install a missing CLI, and
+# that prompt would block headless Neovim on a machine without one.
+echo "codex-cli 0.0.0-test"
