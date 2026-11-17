@@ -1,19 +1,32 @@
 # Makefile for codex.nvim testing and coverage
 # Usage:
-#   make test      - run unit tests
-#   make coverage  - run tests + generate coverage (luacov + lcov.info)
+#   make test                      - unit specs (tests/specs)
+#   make test-codex CODEX_BIN=...  - contract spec against a real codex app-server
+#   make coverage                  - unit specs + coverage (luacov + lcov.info)
 
-# Force correct Lua version for Neovim (Lua 5.1)
+# plenary.nvim drives the specs. Point PLENARY_DIR at a checkout, or install it
+# under ~/.local/share/nvim/site/pack/test/start.
+PLENARY_DIR ?= $(firstword $(wildcard \
+	$(HOME)/.local/share/nvim/site/pack/test/start/plenary.nvim \
+	$(HOME)/.local/share/nvim/lazy/plenary.nvim \
+	.tests/plenary.nvim))
 
-# Headless Neovim test runner
-NVIM_TEST_CMD = nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests/"
+# Real Codex CLI for the contract spec. Defaults to whatever `codex` is on PATH.
+CODEX_BIN ?= codex
 
-.PHONY: test coverage clean
+.PHONY: test test-codex coverage clean install-deps
 
+# Unit specs only: they stub termopen and never start a Codex or Claude process.
 test:
 	@bash -c 'mkdir -p /tmp/codex-nvim-empty-config && \
 	  if command -v luarocks >/dev/null 2>&1; then eval "$$(luarocks --lua-version=5.1 path)"; fi && \
-	  XDG_CONFIG_HOME=/tmp/codex-nvim-empty-config nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests/"'
+	  PLENARY_DIR=$(PLENARY_DIR) XDG_CONFIG_HOME=/tmp/codex-nvim-empty-config \
+	  nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests/specs/ { minimal_init = '\''tests/minimal_init.lua'\'', sequential = true }"'
+
+# Contract spec against a real `codex app-server`: CLI flags and the initialize handshake.
+test-codex:
+	PLENARY_DIR=$(PLENARY_DIR) CODEX_BIN=$(CODEX_BIN) \
+	nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedFile tests/integration/codex_cli_spec.lua"
 
 coverage:
 	@bash -c 'mkdir -p /tmp/codex-nvim-empty-config && \

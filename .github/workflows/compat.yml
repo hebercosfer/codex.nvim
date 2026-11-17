@@ -1,0 +1,242 @@
+name: Compat
+
+# ci.yml runs the unit suite and pins the world, so an upstream change cannot turn
+# this repo red on its own. This workflow does the opposite on purpose, in two parts:
+#
+#   - the pinned grid: codex.nvim against every Neovim and Codex CLI version in
+#     tests/compat/pins.lua. Runs on pull requests that touch the integration
+#     code, and on demand.
+#   - latest: the same contract checks against whatever Codex CLI npm ships
+#     today and Neovim stable/nightly. Runs on a schedule, so drift shows up here
+#     rather than in somebody's editor. Drift is reported; the grid is what fails PRs.
+
+on:
+  schedule:
+    # Mondays, 04:17 UTC. Off the hour: GitHub queues scheduled runs and the top
+    # of the hour is the most contended slot.
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/compat.yml"
+      - "tests/compat/**"
+      - "tests/integration/**"
+      - "tests/minimal_init.lua"
+      - "lua/codex/app_server.lua"
+      - "lua/codex/ws_rpc.lua"
+      - "lua/codex/terminal.lua"
+      - "makefile"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compat-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pins:
+    name: read the pins
+    runs-on: ubuntu-latest
+    outputs:
+      neovim: ${{ steps.read.outputs.neovim }}
+      codex: ${{ steps.read.outputs.codex }}
+      codex_tested: ${{ steps.read.outputs.codex_tested }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The grid is generated from the pins file, so the matrix and the drift check
+      # cannot disagree about what is tested.
+      - uses: rhysd/action-setup-vim@v1
+        env:
+          TMPDIR: ${{ runner.temp }}
+        with:
+          neovim: true
+          version: stable
+
+      - id: read
+        run: |
+          nvim --headless -u NONE -c "lua local p = dofile('tests/compat/pins.lua'); local out = assert(io.open(os.getenv('GITHUB_OUTPUT'), 'a')); out:write('neovim=' .. vim.json.encode(p.neovim) .. '\n'); out:write('codex=' .. vim.json.encode(p.codex_cli) .. '\n'); out:write('codex_tested=' .. p.codex_cli[#p.codex_cli] .. '\n'); out:close()" -c q
+          cat "$GITHUB_OUTPUT"
+
+  grid:
+    name: pinned codex ${{ matrix.codex }} (nvim ${{ matrix.neovim }})
+    needs: pins
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        neovim: ${{ fromJSON(needs.pins.outputs.neovim) }}
+        codex: ${{ fromJSON(needs.pins.outputs.codex) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned, like ci.yml, so a plenary change cannot masquerade as drift in Codex.
+      - name: Check out plenary.nvim
+        uses: actions/checkout@v4
+        with:
+          repository: nvim-lua/plenary.nvim
+          ref: 74b06c6c75e4eeb3108ec01852001636d85a932b
+          path: .tests/plenary.nvim
+
+      # TMPDIR on the runner's own filesystem: the action renames Neovim into
+      # /home/runner, and a cross-device rename fails with EXDEV.
+      - uses: rhysd/action-setup-vim@v1
+        env:
+          TMPDIR: ${{ runner.temp }}
+        with:
+          neovim: true
+          version: ${{ matrix.neovim }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install the Codex CLI under test
+        env:
+          CODEX_VERSION: ${{ matrix.codex }}
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/codex" "@openai/codex@${CODEX_VERSION}"
+          echo "CODEX_BIN=$RUNNER_TEMP/codex/node_modules/.bin/codex" >> "$GITHUB_ENV"
+
+      - name: Record what we are testing against
+        run: |
+          {
+            echo "- Neovim: \`$(nvim --version | head -1)\`"
+            echo "- Codex CLI: \`$("$CODEX_BIN" --version)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run the Codex contract suite
+        env:
+          PLENARY_DIR: ${{ github.workspace }}/.tests/plenary.nvim
+        run: make test-codex
+
+  latest:
+    name: latest codex (nvim ${{ matrix.neovim }})
+    # Not on pull requests: a PR should be judged by the pinned grid, not by whatever
+    # shipped today.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # A nightly Neovim break is Neovim's news, not ours.
+    continue-on-error: ${{ matrix.neovim == 'nightly' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        neovim:
+          - stable
+          - nightly
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out plenary.nvim
+        uses: actions/checkout@v4
+        with:
+          repository: nvim-lua/plenary.nvim
+          ref: 74b06c6c75e4eeb3108ec01852001636d85a932b
+          path: .tests/plenary.nvim
+
+      - uses: rhysd/action-setup-vim@v1
+        env:
+          TMPDIR: ${{ runner.temp }}
+        with:
+          neovim: true
+          version: ${{ matrix.neovim }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install the latest Codex CLI
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/codex" @openai/codex@latest
+          echo "CODEX_BIN=$RUNNER_TEMP/codex/node_modules/.bin/codex" >> "$GITHUB_ENV"
+
+      - name: Record what we are testing against
+        run: |
+          {
+            echo "- Neovim: \`$(nvim --version | head -1)\`"
+            echo "- Codex CLI: \`$("$CODEX_BIN" --version)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run the Codex contract suite
+        env:
+          PLENARY_DIR: ${{ github.workspace }}/.tests/plenary.nvim
+        run: make test-codex
+
+  drift:
+    name: pins vs latest
+    needs: pins
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      report: ${{ steps.compare.outputs.report }}
+    steps:
+      - name: Compare the newest tested Codex CLI with what npm ships
+        id: compare
+        env:
+          TESTED: ${{ needs.pins.outputs.codex_tested }}
+        run: |
+          set -euo pipefail
+          LATEST=$(npm view @openai/codex version)
+          state="up to date"
+          [ "$TESTED" = "$LATEST" ] || state="**drifted**"
+          {
+            echo "| dependency | pins | latest | |"
+            echo "| --- | --- | --- | --- |"
+            echo "| Codex CLI | \`$TESTED\` | \`$LATEST\` | $state |"
+          } > /tmp/report.md
+          cat /tmp/report.md >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "report<<REPORT_EOF"
+            cat /tmp/report.md
+            echo "REPORT_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  notify:
+    name: file the report
+    needs: [drift, latest]
+    # Only the scheduled run files an issue. Failures on a PR are already visible on the PR.
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open or update the compatibility issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPORT: ${{ needs.drift.outputs.report }}
+        run: |
+          set -euo pipefail
+
+          BODY=$(cat <<EOF
+          The scheduled compatibility run failed: codex.nvim no longer passes the
+          contract checks against the latest Codex CLI and/or Neovim nightly.
+
+          $REPORT
+
+          [Full run and failing assertions]($RUN_URL)
+
+          The failing assertions name the flag or handshake that moved. Once the plugin
+          is adjusted, move the pins in \`tests/compat/pins.lua\` and note it in the changelog.
+          EOF
+          )
+
+          # One open issue, commented on, rather than a new one every week.
+          EXISTING=$(gh issue list --repo "$REPO" --label compat --state open \
+            --limit 1 --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --repo "$REPO" --body "$BODY"
+            echo "commented on #$EXISTING" >> "$GITHUB_STEP_SUMMARY"
+          else
+            gh label create compat --repo "$REPO" --color D93F0B \
+              --description "Upstream compatibility drift" 2>/dev/null || true
+            gh issue create --repo "$REPO" --label compat \
+              --title "Compat: upstream no longer matches what codex.nvim expects" \
+              --body "$BODY"
+          fi

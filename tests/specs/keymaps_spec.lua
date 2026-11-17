@@ -68,6 +68,14 @@ end)
 describe('keymaps setup', function()
   local lhs_list = { '<leader>xc', '<leader>xs', '<leader>cc', '<leader>cC', '<leader>cn', '<leader>cy', '<leader>cs', '<leader>aC', '<leader>as' }
 
+  -- plugin/codex.lua installs the defaults when the plugin loads, and setup_with reloads
+  -- the module, which forgets what the old instance mapped. Clear them so every test starts clean.
+  before_each(function()
+    for _, lhs in ipairs(lhs_list) do
+      pcall(vim.keymap.del, { 'n', 't', 'v' }, lhs)
+    end
+  end)
+
   local function setup_with(keymaps)
     for _, module in ipairs { 'codex', 'codex.app_server', 'codex.commands', 'codex.config', 'codex.state', 'codex.terminal', 'codex.ui' } do
       package.loaded[module] = nil
