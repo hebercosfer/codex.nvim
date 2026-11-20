@@ -115,15 +115,15 @@ return {
 
 ## Default Mappings
 
-Mappings are configurable through `setup({ keymaps = ... })`. Omitted keys keep their defaults. Override any value with your preferred key sequence, or set it to `false` or `''` to skip installing that mapping.
+Mappings are configurable through `setup({ keymaps = ... })`. Only the keys you set are overridden; omitted keys keep their defaults. Set an individual entry to `false` or `''` to skip that mapping, or set `keymaps = false` to install no mappings at all.
 
 | Mapping | Modes | Config key | Action |
 | --- | --- | --- | --- |
-| `<leader>ac` | Normal, Terminal | `keymaps.toggle` | Toggle the Codex pane without changing the selected session. |
-| `<leader>aC` | Normal, Terminal | `keymaps.open` | Toggle the Codex pane. If sessions already exist, this does not create a new one. |
-| `<leader>as` | Normal, Visual | `keymaps.send` | Send the prompt or selected range to the currently selected session. |
-| `<leader>an` | Normal | `keymaps.session_new` | Open a new numbered Codex session. |
-| `<leader>ay` | Normal | `keymaps.yolo` | Open a new Codex session with YOLO mode. |
+| `<leader>cc` | Normal, Terminal | `keymaps.toggle` | Toggle the Codex pane without changing the selected session. |
+| `<leader>cC` | Normal, Terminal | `keymaps.open` | Toggle the Codex pane. If sessions already exist, this does not create a new one. |
+| `<leader>cs` | Normal, Visual | `keymaps.send` | Send the prompt or selected range to the currently selected session. |
+| `<leader>cn` | Normal | `keymaps.session_new` | Open a new numbered Codex session. |
+| `<leader>cy` | Normal | `keymaps.yolo` | Open a new Codex session with YOLO mode. |
 | `<C-q>` | Codex terminal/buffer | `keymaps.quit` | Close the Codex pane. |
 | `<C-c>` | App Server buffer UI | `keymaps.interrupt` | Interrupt the active turn in buffer UI mode. In terminal UI mode, `<C-c>` is left to Codex itself. |
 
@@ -166,12 +166,12 @@ require('codex').setup({
   visual_demotion_delay_ms = 50,
   selection_prompt = 'Use the selected Neovim context.',
   keymaps = {
-    toggle = '<leader>ac',
-    open = '<leader>aC',
-    session_new = '<leader>an',
-    yolo = '<leader>ay',
+    toggle = '<leader>cc',
+    open = '<leader>cC',
+    session_new = '<leader>cn',
+    yolo = '<leader>cy',
     quit = '<C-q>',
-    send = '<leader>as',
+    send = '<leader>cs',
     interrupt = '<C-c>',
   },
   session_list = {
@@ -211,6 +211,8 @@ require('codex').setup({
 ```
 
 Terminal launches always include `--config tui.vim_mode_default=true`, including newly created sessions and YOLO sessions.
+
+When `backend = 'app_server'`, `app_server.ui = 'terminal'`, and `app_server.dynamic_tools = true`, codex.nvim exposes its Neovim tools to the remote Codex TUI through a temporary local MCP bridge. The MCP server settings are passed only to that Codex process; codex.nvim does not edit your persistent Codex configuration. This makes tools such as `openDiff` available without changing Codex's sandbox or approval settings, and Codex may still choose its own editing tools. Setting `dynamic_tools = false` disables this terminal-mode bridge.
 
 Set `app_server.ui = 'buffer'` to use the App Server transcript buffer for debugging. Set `backend = 'terminal'` to use the legacy raw `codex` terminal wrapper without App Server integration.
 
