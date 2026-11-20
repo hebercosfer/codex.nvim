@@ -546,6 +546,39 @@ local function append_launch_flags(cmd_args, config, opts, session)
   end
 end
 
+local function toml_string(value)
+  local escaped = tostring(value)
+    :gsub('\\', '\\\\')
+    :gsub('"', '\\"')
+    :gsub('\b', '\\b')
+    :gsub('\t', '\\t')
+    :gsub('\n', '\\n')
+    :gsub('\f', '\\f')
+    :gsub('\r', '\\r')
+  return '"' .. escaped .. '"'
+end
+
+local function append_remote_mcp_config(cmd_args, remote)
+  local server = remote and remote.mcp_server
+  if type(server) ~= 'table' or type(server.command) ~= 'string' or type(server.args) ~= 'table' then
+    return
+  end
+
+  local encoded_args = {}
+  for _, arg in ipairs(server.args) do
+    table.insert(encoded_args, toml_string(arg))
+  end
+
+  local function append_config(key, value)
+    table.insert(cmd_args, '--config')
+    table.insert(cmd_args, key .. '=' .. value)
+  end
+
+  append_config('mcp_servers.codex_nvim.command', toml_string(server.command))
+  append_config('mcp_servers.codex_nvim.args', '[' .. table.concat(encoded_args, ', ') .. ']')
+  append_config('mcp_servers.codex_nvim.enabled', 'true')
+end
+
 local function build_cmd_args(config, remote, opts, cwd, session)
   opts = opts or {}
   local cmd_args = util.normalize_cmd(config.cmd)
@@ -553,6 +586,7 @@ local function build_cmd_args(config, remote, opts, cwd, session)
     if remote.resume_last then
       table.insert(cmd_args, 'resume')
       append_launch_flags(cmd_args, config, opts, session)
+      append_remote_mcp_config(cmd_args, remote)
       table.insert(cmd_args, '--last')
       table.insert(cmd_args, '--remote')
       table.insert(cmd_args, remote.url)
@@ -564,6 +598,7 @@ local function build_cmd_args(config, remote, opts, cwd, session)
       return cmd_args
     else
       append_launch_flags(cmd_args, config, opts, session)
+      append_remote_mcp_config(cmd_args, remote)
       table.insert(cmd_args, '--remote')
       table.insert(cmd_args, remote.url)
       append_cwd_arg(cmd_args, cwd)
@@ -794,7 +829,8 @@ function M.open_remote(url, thread_id, opts)
   local current_remote = session_remote(session)
   local current_cwd = session and session.cwd or M.cwd
   local job = session_job(session)
-  if job and (not current_remote or current_remote.url ~= url or (cwd and current_cwd and current_cwd ~= cwd)) then
+  if job and (not current_remote or current_remote.url ~= url or (cwd and current_cwd and current_cwd ~= cwd)
+    or not vim.deep_equal(current_remote.mcp_server, opts.mcp_server)) then
     pcall(vim.fn.jobstop, job)
     set_session_job(session, nil)
   end
@@ -802,6 +838,7 @@ function M.open_remote(url, thread_id, opts)
     url = url,
     thread_id = thread_id,
     resume_last = opts.resume_last == true,
+    mcp_server = opts.mcp_server,
   }
   if session then
     session.remote = remote

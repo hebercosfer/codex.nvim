@@ -224,6 +224,8 @@ require('codex').setup({
 
 Terminal launches always include `--config tui.vim_mode_default=true`, including newly created sessions and YOLO sessions.
 
+When `backend = 'app_server'`, `app_server.ui = 'terminal'`, and `app_server.dynamic_tools = true`, codex.nvim exposes its Neovim tools to the remote Codex TUI through a temporary local MCP bridge. The MCP server settings are passed only to that Codex process; codex.nvim does not edit your persistent Codex configuration. This makes tools such as `openDiff` available without changing Codex's sandbox or approval settings, and Codex may still choose its own editing tools. Setting `dynamic_tools = false` disables this terminal-mode bridge.
+
 Set `app_server.ui = 'buffer'` to use the App Server transcript buffer for debugging. Set `backend = 'terminal'` to use the legacy raw `codex` terminal wrapper without App Server integration.
 
 ## Statusline
