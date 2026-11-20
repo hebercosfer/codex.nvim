@@ -235,6 +235,14 @@ function M.setup(active_config, active_api)
       end
     end)
   end, { desc = 'Reload Codex MCP server configuration' })
+  vim.api.nvim_create_user_command('CodexDiffAccept', function()
+    require('codex.tools.open_diff').accept_current_diff()
+  end, { desc = 'Accept the current Codex diff' })
+
+  vim.api.nvim_create_user_command('CodexDiffReject', function()
+    require('codex.tools.open_diff').reject_current_diff()
+  end, { desc = 'Reject the current Codex diff' })
+
 end
 
 return M

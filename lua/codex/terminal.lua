@@ -540,21 +540,14 @@ end
 
 local function append_launch_flags(cmd_args, config, opts, session)
   table.insert(cmd_args, '--config')
-  table.insert(cmd_args, 'tui.vim_mode_default=true')
+  table.insert(cmd_args, 'mcp_servers.codex_nvim.enabled=false')
   if (session and session.yolo) or (opts and opts.yolo) or (config and config.yolo) then
     table.insert(cmd_args, '--dangerously-bypass-approvals-and-sandbox')
   end
 end
 
 local function toml_string(value)
-  local escaped = tostring(value)
-    :gsub('\\', '\\\\')
-    :gsub('"', '\\"')
-    :gsub('\b', '\\b')
-    :gsub('\t', '\\t')
-    :gsub('\n', '\\n')
-    :gsub('\f', '\\f')
-    :gsub('\r', '\\r')
+  local escaped = tostring(value):gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\b', '\\b'):gsub('\t', '\\t'):gsub('\n', '\\n'):gsub('\f', '\\f'):gsub('\r', '\\r')
   return '"' .. escaped .. '"'
 end
 
@@ -829,8 +822,15 @@ function M.open_remote(url, thread_id, opts)
   local current_remote = session_remote(session)
   local current_cwd = session and session.cwd or M.cwd
   local job = session_job(session)
-  if job and (not current_remote or current_remote.url ~= url or (cwd and current_cwd and current_cwd ~= cwd)
-    or not vim.deep_equal(current_remote.mcp_server, opts.mcp_server)) then
+  if
+    job
+    and (
+      not current_remote
+      or current_remote.url ~= url
+      or (cwd and current_cwd and current_cwd ~= cwd)
+      or not vim.deep_equal(current_remote.mcp_server, opts.mcp_server)
+    )
+  then
     pcall(vim.fn.jobstop, job)
     set_session_job(session, nil)
   end

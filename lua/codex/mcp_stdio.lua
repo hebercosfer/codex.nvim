@@ -1,13 +1,44 @@
 local uv = vim.loop
 
-local socket_path = arg and arg[#arg] or nil
-if not socket_path or socket_path == '' then
+local function explicit_socket_path()
   for index, value in ipairs(vim.v.argv) do
     if value == '-l' then
-      socket_path = vim.v.argv[index + 2]
-      break
+      local candidate = vim.v.argv[index + 2]
+      if candidate == '--' then
+        candidate = vim.v.argv[index + 3]
+      end
+      return candidate ~= '' and candidate or nil
     end
   end
+  if arg and type(arg[1]) == 'string' and arg[1] ~= '' then
+    return arg[1]
+  end
+end
+
+local socket_path = explicit_socket_path()
+
+if not socket_path then
+  local source = debug.getinfo(1, 'S').source
+  if source:sub(1, 1) == '@' then
+    source = source:sub(2)
+  end
+  local plugin_root = vim.fn.fnamemodify(source, ':p:h:h:h')
+  vim.opt.runtimepath:prepend(plugin_root)
+
+  local loaded, registry = pcall(require, 'codex.mcp_registry')
+  if not loaded then
+    io.stderr:write('could not load codex.nvim MCP registry: ', tostring(registry), '\n')
+    io.stderr:flush()
+    os.exit(1)
+  end
+
+  local record, registry_err = registry.resolve(nil, vim.fn.getcwd())
+  if not record then
+    io.stderr:write('could not discover a codex.nvim MCP bridge: ', tostring(registry_err), '\n')
+    io.stderr:flush()
+    os.exit(1)
+  end
+  socket_path = record.socket_path
 end
 
 local function write_stderr(message)
@@ -27,7 +58,7 @@ local function write_stdout(value)
 end
 
 if not socket_path or socket_path == '' then
-  write_stderr('codex.nvim MCP helper did not receive its socket path')
+  write_stderr 'codex.nvim MCP helper did not receive its socket path'
   os.exit(1)
 end
 
@@ -51,7 +82,7 @@ local function wait_for(predicate)
     if socket_error then
       return false
     end
-    local active = uv.run('once')
+    local active = uv.run 'once'
     if not active and not predicate() then
       return false
     end
@@ -167,7 +198,7 @@ local function handle_message(message)
 end
 
 while true do
-  local line = io.stdin:read('*l')
+  local line = io.stdin:read '*l'
   if line == nil then
     break
   end

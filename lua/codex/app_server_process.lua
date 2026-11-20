@@ -1,4 +1,5 @@
 local logger = require 'codex.logger'
+local mcp_bridge = require 'codex.mcp_bridge'
 local state = require 'codex.state'
 local util = require 'codex.util'
 
@@ -30,6 +31,10 @@ end
 
 local function build_cmd(config, listen_url)
   local cmd = util.normalize_cmd(config.cmd)
+  -- Terminal Codex attaches with --remote, so this process (not the TUI) spawns
+  -- MCP servers and must be the one pointed at the Neovim bridge.
+  local overrides = config.app_server.dynamic_tools and mcp_bridge.config_args() or { '--config', 'mcp_servers.codex_nvim.enabled=false' }
+  vim.list_extend(cmd, overrides)
   table.insert(cmd, 'app-server')
   table.insert(cmd, '--listen')
   table.insert(cmd, listen_url)

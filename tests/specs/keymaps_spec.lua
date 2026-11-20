@@ -19,6 +19,8 @@ describe('keymaps configuration', function()
     eq('<leader>cn', keymaps.session_new)
     eq('<leader>cy', keymaps.yolo)
     eq('<leader>cs', keymaps.send)
+    eq('<leader>ca', keymaps.diff_accept)
+    eq('<leader>cd', keymaps.diff_reject)
   end)
 
   it('keeps the defaults when keymaps is omitted', function()
@@ -66,13 +68,13 @@ describe('keymaps configuration', function()
 end)
 
 describe('keymaps setup', function()
-  local lhs_list = { '<leader>xc', '<leader>xs', '<leader>cc', '<leader>cC', '<leader>cn', '<leader>cy', '<leader>cs', '<leader>aC', '<leader>as' }
+  local lhs_list = { '<leader>xc', '<leader>xs', '<leader>cc', '<leader>cC', '<leader>cn', '<leader>cy', '<leader>cs', '<leader>ca', '<leader>cd', '<leader>aC', '<leader>as' }
 
   -- plugin/codex.lua installs the defaults when the plugin loads, and setup_with reloads
   -- the module, which forgets what the old instance mapped. Clear them so every test starts clean.
   before_each(function()
     for _, lhs in ipairs(lhs_list) do
-      pcall(vim.keymap.del, { 'n', 't', 'v' }, lhs)
+      pcall(vim.keymap.del, { 'n', 't', 'v', 'x' }, lhs)
     end
   end)
 
@@ -95,7 +97,7 @@ describe('keymaps setup', function()
 
   after_each(function()
     for _, lhs in ipairs(lhs_list) do
-      pcall(vim.keymap.del, { 'n', 't', 'v' }, lhs)
+      pcall(vim.keymap.del, { 'n', 't', 'v', 'x' }, lhs)
     end
   end)
 
@@ -107,6 +109,15 @@ describe('keymaps setup', function()
     assert(not mapped '<leader>cs', 'default send should be replaced by the configured one')
     assert(mapped '<leader>cC', 'default open should stay mapped when only toggle and send are configured')
     assert(not mapped '<leader>aC', 'legacy <leader>a mappings should not be mapped')
+  end)
+
+  it('maps diff decisions by default without changing the new-session key', function()
+    setup_with(nil)
+    assert(mapped '<leader>cc', 'normal <leader>cc should still toggle Codex')
+    assert(vim.fn.maparg('<leader>cc', 'x') == '', 'visual <leader>cc should remain available to user config')
+    assert(mapped '<leader>cn', '<leader>cn should remain available for a new session')
+    assert(mapped '<leader>ca', '<leader>ca should accept a diff')
+    assert(mapped '<leader>cd', '<leader>cd should reject a diff')
   end)
 
   it('does not leave an overridden default behind after a later setup call on the same module', function()
@@ -131,6 +142,7 @@ describe('keymaps setup', function()
     for _, lhs in ipairs(lhs_list) do
       assert(not mapped(lhs), lhs .. ' should not be mapped when keymaps = false')
     end
+    assert(vim.fn.maparg('<leader>cc', 'x') == '', 'visual <leader>cc should not be mapped by the plugin')
   end)
 end)
 

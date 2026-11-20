@@ -1,8 +1,11 @@
 local logger = require 'codex.logger'
+local registry = require 'codex.mcp_registry'
+local util = require 'codex.util'
 
 local uv = vim.loop
 local M = {
   clients = {},
+  registry_path = nil,
 }
 
 local function close(handle)
@@ -18,7 +21,7 @@ local function close(handle)
 end
 
 local function socket_path()
-  if vim.fn.has('win32') == 1 then
+  if vim.fn.has 'win32' == 1 then
     local id = vim.fn.sha256(vim.fn.tempname()):sub(1, 24)
     return [[\\.\pipe\]] .. 'codex.nvim.' .. id
   end
@@ -160,6 +163,14 @@ end
 function M.start(dispatch)
   if M.server then
     M.dispatch = dispatch or M.dispatch
+    if not M.registry_path then
+      local manifest_path, registry_err = registry.publish(M.socket_path, util.cwd())
+      if manifest_path then
+        M.registry_path = manifest_path
+      else
+        logger.warn('Neovim MCP bridge discovery is unavailable:', tostring(registry_err))
+      end
+    end
     return M.socket_path
   end
   if type(dispatch) ~= 'function' then
@@ -185,8 +196,15 @@ function M.start(dispatch)
     return nil, tostring(listen_err or 'failed to listen on MCP bridge socket')
   end
 
-  if vim.fn.has('win32') ~= 1 and uv.fs_chmod then
+  if vim.fn.has 'win32' ~= 1 and uv.fs_chmod then
     pcall(uv.fs_chmod, path, 384)
+  end
+
+  local manifest_path, registry_err = registry.publish(path, util.cwd())
+  if manifest_path then
+    M.registry_path = manifest_path
+  else
+    logger.warn('Neovim MCP bridge discovery is unavailable:', tostring(registry_err))
   end
   return path
 end
@@ -213,8 +231,44 @@ function M.launch_config()
   }
 end
 
+local function toml_string(value)
+  local escaped = tostring(value):gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\n', '\\n'):gsub('\r', '\\r'):gsub('\t', '\\t')
+  return '"' .. escaped .. '"'
+end
+
+-- `--config` overrides that point the `codex_nvim` MCP entry at the running
+-- bridge, or disable the entry when no bridge is available. Whichever process
+-- spawns MCP servers (the app-server under `--remote`) must receive these.
+function M.config_args()
+  local server = M.launch_config()
+  if not server then
+    return { '--config', 'mcp_servers.codex_nvim.enabled=false' }
+  end
+
+  local encoded = {}
+  for _, value in ipairs(server.args) do
+    table.insert(encoded, toml_string(value))
+  end
+  return {
+    '--config',
+    'mcp_servers.codex_nvim.command=' .. toml_string(server.command),
+    '--config',
+    'mcp_servers.codex_nvim.args=[' .. table.concat(encoded, ', ') .. ']',
+    '--config',
+    'mcp_servers.codex_nvim.enabled=true',
+  }
+end
+
 function M.stop()
   M.dispatch = nil
+  local registry_path = M.registry_path
+  M.registry_path = nil
+  if registry_path then
+    local removed, remove_err = registry.remove(registry_path)
+    if not removed then
+      logger.warn('could not remove Neovim MCP bridge discovery record:', tostring(remove_err))
+    end
+  end
   for client in pairs(M.clients) do
     remove_client(client)
   end
@@ -224,7 +278,7 @@ function M.stop()
   M.server = nil
   M.socket_path = nil
   close(server)
-  if path and vim.fn.has('win32') ~= 1 then
+  if path and vim.fn.has 'win32' ~= 1 then
     pcall(uv.fs_unlink, path)
   end
 end

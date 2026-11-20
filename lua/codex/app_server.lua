@@ -22,6 +22,8 @@ local M = {
 
 local function build_cmd(config)
   local cmd = util.normalize_cmd(config.cmd)
+  table.insert(cmd, '--config')
+  table.insert(cmd, 'mcp_servers.codex_nvim.enabled=false')
   table.insert(cmd, 'app-server')
   if config.app_server.listen then
     table.insert(cmd, '--listen')
@@ -40,7 +42,7 @@ end
 
 local function dispatch_mcp(method, params, respond)
   if method == 'tools/list' then
-    respond({ tools = tools.get_mcp_specs() })
+    respond { tools = tools.get_mcp_specs() }
   elseif method == 'tools/call' then
     tools.handle_mcp(params, respond)
   else
@@ -49,7 +51,7 @@ local function dispatch_mcp(method, params, respond)
 end
 
 local function ensure_mcp_bridge()
-  if not terminal_ui() or not M.config.app_server.dynamic_tools then
+  if not (M.config and M.config.app_server and M.config.app_server.dynamic_tools) then
     mcp_bridge.stop()
     return nil
   end
@@ -642,7 +644,12 @@ function M.send(prompt, opts)
     if terminal_ui() then
       if opts.submit == false then
         terminal.insert(prompt, vim.tbl_extend('force', opts, { focus = false }))
-        M.open_terminal { focus = false, session = opts.session }
+        local focus_after_send = M.config.focus_after_send == true
+        M.open_terminal {
+          focus = focus_after_send,
+          insert = focus_after_send,
+          session = opts.session,
+        }
       elseif ctx.thread_id then
         local input = build_input(prompt, opts, ctx)
         local prompt_text = input[1] and input[1].text or prompt

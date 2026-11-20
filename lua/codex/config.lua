@@ -9,6 +9,8 @@ M.defaults = {
     yolo = '<leader>cy',
     quit = '<C-q>',
     send = '<leader>cs',
+    diff_accept = '<leader>ca',
+    diff_reject = '<leader>cd',
     interrupt = '<C-c>',
   },
   border = 'rounded',
