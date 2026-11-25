@@ -1,4 +1,5 @@
 local eq = assert.equals
+local same = assert.same
 
 describe('codex app-server support', function()
   local original_cwd
@@ -120,23 +121,31 @@ describe('codex app-server support', function()
     end)
 
     assert(started, 'App Server should initialize')
-    eq(
-      'codex --verbose --config mcp_servers.codex_nvim.enabled=false app-server --listen ws://127.0.0.1:45555 --enable feature-one --enable feature-two',
-      table.concat(client_options.cmd, ' ')
-    )
+    same({
+      'codex',
+      '--verbose',
+      '--config',
+      'mcp_servers.codex_nvim.enabled=false',
+      'app-server',
+      '--listen',
+      'ws://127.0.0.1:45555',
+      '--enable',
+      'feature-one',
+      '--enable',
+      'feature-two',
+    }, client_options.cmd)
 
     local listed
     dispatch('tools/list', {}, function(result)
       listed = result
     end)
-    eq(1, #listed.tools)
-    eq('mcpTool', listed.tools[1].name)
+    same({ { name = 'mcpTool' } }, listed.tools)
 
     local called
     dispatch('tools/call', { name = 'mcpTool' }, function(result)
       called = result
     end)
-    eq('mcpTool', called.name)
+    same({ name = 'mcpTool' }, called)
 
     local error
     dispatch('unknown/method', {}, function(_, err)
