@@ -29,6 +29,18 @@ local function content_response(value, success)
   }
 end
 
+local function mcp_content_response(value, is_error)
+  return {
+    content = {
+      {
+        type = 'text',
+        text = util.text_content(value),
+      },
+    },
+    isError = is_error == true,
+  }
+end
+
 function M.register(tool)
   if not tool or not tool.name or not tool.handler then
     return
@@ -66,6 +78,14 @@ function M.get_specs()
   return specs
 end
 
+function M.get_mcp_specs()
+  local specs = M.get_specs()
+  for _, spec in ipairs(specs) do
+    spec.namespace = nil
+  end
+  return specs
+end
+
 function M.handle(params, respond)
   if vim.tbl_isempty(M.tools) then
     M.register_all()
@@ -84,6 +104,40 @@ function M.handle(params, respond)
   local ok, result = pcall(tool.handler, params.arguments or {}, done)
   if not ok then
     respond(content_response(result, false))
+    return
+  end
+
+  if result == M.DEFERRED or (type(result) == 'table' and result.__codex_deferred) then
+    return
+  end
+
+  done(result, true)
+end
+
+function M.handle_mcp(params, respond)
+  if vim.tbl_isempty(M.tools) then
+    M.register_all()
+  end
+
+  params = params or {}
+  local tool = M.tools[params.name]
+  if not tool then
+    respond(mcp_content_response('Unknown tool: ' .. tostring(params.name), true))
+    return
+  end
+
+  local responded = false
+  local function done(value, success)
+    if responded then
+      return
+    end
+    responded = true
+    respond(mcp_content_response(value, success == false))
+  end
+
+  local ok, result = pcall(tool.handler, params.arguments or {}, done)
+  if not ok then
+    done(result, false)
     return
   end
 

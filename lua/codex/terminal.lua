@@ -178,6 +178,19 @@ local function create_clean_buf(config)
       end
     end
   end
+  local session_maps = {
+    { name = 'session_next', direction = 1, desc = 'Next Codex session' },
+    { name = 'session_previous', direction = -1, desc = 'Previous Codex session' },
+  }
+  for _, entry in ipairs(session_maps) do
+    local lhs = config.keymaps[entry.name]
+    if type(lhs) == 'string' and lhs ~= '' and lhs ~= config.keymaps.quit then
+      local rhs = '<cmd>lua require("codex.terminal").cycle_session(' .. entry.direction .. ')<CR>'
+      vim.api.nvim_buf_set_keymap(buf, 'n', lhs, rhs, { noremap = true, silent = true, desc = entry.desc })
+      vim.api.nvim_buf_set_keymap(buf, 't', lhs, [[<C-\><C-n>]] .. rhs, { noremap = true, silent = true, desc = entry.desc })
+    end
+  end
+
   vim.api.nvim_buf_set_keymap(buf, 't', '<CR>', [[<C-\><C-n><cmd>lua require('codex.terminal').submit()<CR>]], {
     noremap = true,
     silent = true,
@@ -540,10 +553,36 @@ end
 
 local function append_launch_flags(cmd_args, config, opts, session)
   table.insert(cmd_args, '--config')
-  table.insert(cmd_args, 'tui.vim_mode_default=true')
+  table.insert(cmd_args, 'mcp_servers.codex_nvim.enabled=false')
   if (session and session.yolo) or (opts and opts.yolo) or (config and config.yolo) then
     table.insert(cmd_args, '--dangerously-bypass-approvals-and-sandbox')
   end
+end
+
+local function toml_string(value)
+  local escaped = tostring(value):gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\b', '\\b'):gsub('\t', '\\t'):gsub('\n', '\\n'):gsub('\f', '\\f'):gsub('\r', '\\r')
+  return '"' .. escaped .. '"'
+end
+
+local function append_remote_mcp_config(cmd_args, remote)
+  local server = remote and remote.mcp_server
+  if type(server) ~= 'table' or type(server.command) ~= 'string' or type(server.args) ~= 'table' then
+    return
+  end
+
+  local encoded_args = {}
+  for _, arg in ipairs(server.args) do
+    table.insert(encoded_args, toml_string(arg))
+  end
+
+  local function append_config(key, value)
+    table.insert(cmd_args, '--config')
+    table.insert(cmd_args, key .. '=' .. value)
+  end
+
+  append_config('mcp_servers.codex_nvim.command', toml_string(server.command))
+  append_config('mcp_servers.codex_nvim.args', '[' .. table.concat(encoded_args, ', ') .. ']')
+  append_config('mcp_servers.codex_nvim.enabled', 'true')
 end
 
 local function build_cmd_args(config, remote, opts, cwd, session)
@@ -553,6 +592,7 @@ local function build_cmd_args(config, remote, opts, cwd, session)
     if remote.resume_last then
       table.insert(cmd_args, 'resume')
       append_launch_flags(cmd_args, config, opts, session)
+      append_remote_mcp_config(cmd_args, remote)
       table.insert(cmd_args, '--last')
       table.insert(cmd_args, '--remote')
       table.insert(cmd_args, remote.url)
@@ -564,6 +604,7 @@ local function build_cmd_args(config, remote, opts, cwd, session)
       return cmd_args
     else
       append_launch_flags(cmd_args, config, opts, session)
+      append_remote_mcp_config(cmd_args, remote)
       table.insert(cmd_args, '--remote')
       table.insert(cmd_args, remote.url)
       append_cwd_arg(cmd_args, cwd)
@@ -794,7 +835,15 @@ function M.open_remote(url, thread_id, opts)
   local current_remote = session_remote(session)
   local current_cwd = session and session.cwd or M.cwd
   local job = session_job(session)
-  if job and (not current_remote or current_remote.url ~= url or (cwd and current_cwd and current_cwd ~= cwd)) then
+  if
+    job
+    and (
+      not current_remote
+      or current_remote.url ~= url
+      or (cwd and current_cwd and current_cwd ~= cwd)
+      or not vim.deep_equal(current_remote.mcp_server, opts.mcp_server)
+    )
+  then
     pcall(vim.fn.jobstop, job)
     set_session_job(session, nil)
   end
@@ -802,6 +851,7 @@ function M.open_remote(url, thread_id, opts)
     url = url,
     thread_id = thread_id,
     resume_last = opts.resume_last == true,
+    mcp_server = opts.mcp_server,
   }
   if session then
     session.remote = remote
@@ -1017,6 +1067,31 @@ function M.toggle()
   else
     M.open()
   end
+end
+
+function M.cycle_session(direction)
+  if direction ~= 1 and direction ~= -1 then
+    return false
+  end
+
+  local order = state.session_order or {}
+  if #order < 2 then
+    return false
+  end
+
+  local active_index
+  for index, id in ipairs(order) do
+    if id == state.active_session_id then
+      active_index = index
+      break
+    end
+  end
+  if not active_index then
+    return false
+  end
+
+  local next_index = ((active_index - 1 + direction) % #order) + 1
+  return M.select_session(order[next_index])
 end
 
 function M.select_session(id, opts)

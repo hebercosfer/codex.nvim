@@ -423,12 +423,32 @@ describe('codex.nvim', function()
     }
 
     terminal.open_placeholder()
-    terminal.open_remote('ws://127.0.0.1:45555', 'thread-123')
+    terminal.open_remote('ws://127.0.0.1:45555', 'thread-123', {
+      mcp_server = {
+        command = 'nvim',
+        args = { '--headless', '--clean', '-l', '/plugin/lua/codex/mcp_stdio.lua', '/tmp/codex-mcp.sock' },
+      },
+    })
 
     assert(received_cmd, 'termopen should be called')
     eq('codex', received_cmd[1])
     assert(vim.tbl_contains(received_cmd, '--config'), 'vim mode config flag missing')
-    assert(vim.tbl_contains(received_cmd, 'tui.vim_mode_default=true'), 'vim mode default override missing')
+    assert(not vim.tbl_contains(received_cmd, 'tui.vim_mode_default=true'), 'codex.nvim should not force Codex Vim mode')
+    assert(
+      vim.tbl_contains(received_cmd, 'mcp_servers.codex_nvim.enabled=false'),
+      'remote TUI should disable the global helper before applying the session bridge'
+    )
+    assert(vim.tbl_contains(received_cmd, 'mcp_servers.codex_nvim.enabled=true'), 'session bridge should be enabled')
+    local disabled_index, enabled_index
+    for index, arg in ipairs(received_cmd) do
+      if arg == 'mcp_servers.codex_nvim.enabled=false' then
+        disabled_index = index
+      elseif arg == 'mcp_servers.codex_nvim.enabled=true' then
+        enabled_index = index
+      end
+    end
+    assert(disabled_index < enabled_index, 'session bridge should override the global disabled setting')
+    assert(vim.tbl_contains(received_cmd, 'mcp_servers.codex_nvim.command="nvim"'), 'MCP helper command missing')
     assert(vim.tbl_contains(received_cmd, '--remote'), 'remote flag missing')
     assert(vim.tbl_contains(received_cmd, 'ws://127.0.0.1:45555'), 'remote url missing')
     assert(vim.tbl_contains(received_cmd, '--cd'), 'remote TUI should receive an explicit cwd')
@@ -481,7 +501,7 @@ describe('codex.nvim', function()
     eq('codex', received_cmd[1])
     eq('resume', received_cmd[2])
     assert(vim.tbl_contains(received_cmd, '--config'), 'vim mode config flag missing')
-    assert(vim.tbl_contains(received_cmd, 'tui.vim_mode_default=true'), 'vim mode default override missing')
+    assert(not vim.tbl_contains(received_cmd, 'tui.vim_mode_default=true'), 'codex.nvim should not force Codex Vim mode')
     assert(vim.tbl_contains(received_cmd, '--last'), 'resume should use --last')
     assert(vim.tbl_contains(received_cmd, '--remote'), 'resume should connect to the remote app-server')
     assert(vim.tbl_contains(received_cmd, 'ws://127.0.0.1:45555'), 'remote url missing')
@@ -636,7 +656,7 @@ describe('codex.nvim', function()
     assert(vim.tbl_contains(received_cmds[1], '--remote'), '\\an should open a remote app-server TUI')
     assert(vim.tbl_contains(received_cmds[1], 'ws://127.0.0.1:45555'), '\\an should use the app-server listen URL')
     assert(vim.tbl_contains(received_cmds[1], '--config'), '\\an session should include --config')
-    assert(vim.tbl_contains(received_cmds[1], 'tui.vim_mode_default=true'), '\\an session should enable vim mode')
+    assert(not vim.tbl_contains(received_cmds[1], 'tui.vim_mode_default=true'), 'codex.nvim should not force Codex Vim mode')
     assert(not vim.tbl_contains(received_cmds[1], '--dangerously-bypass-approvals-and-sandbox'), '\\an session should not enable YOLO mode')
 
     vim.cmd 'CodexYolo'
@@ -645,7 +665,7 @@ describe('codex.nvim', function()
     eq(empty_buffers_before, listed_empty_buffers())
     assert(vim.tbl_contains(received_cmds[2], '--remote'), 'YOLO should open a remote app-server TUI')
     assert(vim.tbl_contains(received_cmds[2], 'ws://127.0.0.1:45555'), 'YOLO should use the app-server listen URL')
-    assert(vim.tbl_contains(received_cmds[2], 'tui.vim_mode_default=true'), 'YOLO session should enable vim mode')
+    assert(not vim.tbl_contains(received_cmds[2], 'tui.vim_mode_default=true'), 'codex.nvim should not force Codex Vim mode')
     assert(vim.tbl_contains(received_cmds[2], '--dangerously-bypass-approvals-and-sandbox'), 'YOLO session should include bypass flag')
 
     require('codex').close()
@@ -853,6 +873,19 @@ describe('codex.nvim', function()
     eq(2, state.active_session_id)
     eq(state.win, vim.api.nvim_get_current_win())
     eq(false, vim.api.nvim_win_get_option(list_win, 'cursorline'))
+    assert(terminal.cycle_session, 'terminal session cycling should be available')
+    assert(terminal.cycle_session(1), 'next should select another session')
+    eq(1, state.active_session_id)
+    assert(terminal.cycle_session(-1), 'previous should select another session')
+    eq(2, state.active_session_id)
+    assert(terminal.cycle_session(1), 'next should wrap from the last session')
+    eq(1, state.active_session_id)
+    eq(false, terminal.cycle_session(0), 'unsupported directions should be ignored')
+    local active_session_id = state.active_session_id
+    state.active_session_id = 999
+    eq(false, terminal.cycle_session(1), 'cycling should be a no-op if the active session is missing')
+    terminal.select_session(active_session_id, { focus = false })
+    eq(active_session_id, state.active_session_id)
     mouse_win = nil
 
     terminal.select_session(1, { focus = false })
@@ -871,6 +904,8 @@ describe('codex.nvim', function()
 
     exits[second_job](second_job, 0)
     eq(1, #state.session_order)
+    eq(1, state.active_session_id)
+    eq(false, terminal.cycle_session(1), 'cycling should be a no-op with one session')
     eq(1, state.active_session_id)
     eq(first_buf, state.buf)
     eq(first_buf, vim.api.nvim_win_get_buf(state.win))
@@ -918,9 +953,9 @@ describe('codex.nvim', function()
     terminal.yolo()
 
     assert(vim.tbl_contains(received_cmds[1], '--config'), 'normal session should include --config')
-    assert(vim.tbl_contains(received_cmds[1], 'tui.vim_mode_default=true'), 'normal session should enable vim mode')
+    assert(not vim.tbl_contains(received_cmds[1], 'tui.vim_mode_default=true'), 'codex.nvim should not force Codex Vim mode')
     assert(vim.tbl_contains(received_cmds[2], '--config'), 'YOLO session should include --config')
-    assert(vim.tbl_contains(received_cmds[2], 'tui.vim_mode_default=true'), 'YOLO session should enable vim mode')
+    assert(not vim.tbl_contains(received_cmds[2], 'tui.vim_mode_default=true'), 'codex.nvim should not force Codex Vim mode')
     assert(vim.tbl_contains(received_cmds[2], '--dangerously-bypass-approvals-and-sandbox'), 'YOLO session should include bypass flag')
 
     terminal.close()

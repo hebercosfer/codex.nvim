@@ -86,6 +86,8 @@ function M.setup(user_config)
     map({ 'n', 'v' }, config.keymaps.send, '<cmd>CodexSend<CR>', 'Send selection to Codex')
     map('n', config.keymaps.session_new, '<cmd>CodexSession new<CR>', 'New Codex session')
     map('n', config.keymaps.yolo, '<cmd>CodexYolo<CR>', 'New Codex YOLO session')
+    map('n', config.keymaps.diff_accept, '<cmd>CodexDiffAccept<CR>', 'Accept Codex diff')
+    map('n', config.keymaps.diff_reject, '<cmd>CodexDiffReject<CR>', 'Reject Codex diff')
   end
 
   if config.track_selection then

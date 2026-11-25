@@ -1,5 +1,6 @@
 local approvals = require 'codex.approvals'
 local app_process = require 'codex.app_server_process'
+local mcp_bridge = require 'codex.mcp_bridge'
 local editor = require 'codex.editor'
 local jsonrpc = require 'codex.jsonrpc'
 local logger = require 'codex.logger'
@@ -21,6 +22,8 @@ local M = {
 
 local function build_cmd(config)
   local cmd = util.normalize_cmd(config.cmd)
+  table.insert(cmd, '--config')
+  table.insert(cmd, 'mcp_servers.codex_nvim.enabled=false')
   table.insert(cmd, 'app-server')
   if config.app_server.listen then
     table.insert(cmd, '--listen')
@@ -35,6 +38,29 @@ end
 
 local function terminal_ui()
   return M.config and M.config.app_server and M.config.app_server.ui == 'terminal'
+end
+
+local function dispatch_mcp(method, params, respond)
+  if method == 'tools/list' then
+    respond { tools = tools.get_mcp_specs() }
+  elseif method == 'tools/call' then
+    tools.handle_mcp(params, respond)
+  else
+    respond(nil, { code = -32601, message = 'Method not found: ' .. tostring(method) })
+  end
+end
+
+local function ensure_mcp_bridge()
+  if not (M.config and M.config.app_server and M.config.app_server.dynamic_tools) then
+    mcp_bridge.stop()
+    return nil
+  end
+
+  local path, err = mcp_bridge.start(dispatch_mcp)
+  if not path then
+    logger.warn('Neovim MCP tools are unavailable:', tostring(err))
+  end
+  return path
 end
 
 local function text_item(text)
@@ -376,6 +402,7 @@ local function connect_ws_client(listen_url, callback)
         state.app.pending_injections = {}
         clear_all_session_contexts()
         M.starting = false
+        mcp_bridge.stop()
       end,
     }
 
@@ -451,6 +478,7 @@ function M.start(callback)
   if state.app.cwd and state.app.cwd ~= cwd then
     M.stop()
   end
+  ensure_mcp_bridge()
 
   if state.app.client and state.app.client:is_running() and state.app.initialized then
     local ctx = app_context()
@@ -505,6 +533,7 @@ function M.start(callback)
       state.app.pending_injections = {}
       clear_all_session_contexts()
       M.starting = false
+      mcp_bridge.stop()
       ui.append(('app-server exited with code %s'):format(tostring(code)))
     end,
   }
@@ -553,6 +582,7 @@ function M.start(callback)
 end
 
 function M.stop()
+  mcp_bridge.stop()
   if state.app.client then
     state.app.client:stop()
   end
@@ -614,7 +644,12 @@ function M.send(prompt, opts)
     if terminal_ui() then
       if opts.submit == false then
         terminal.insert(prompt, vim.tbl_extend('force', opts, { focus = false }))
-        M.open_terminal { focus = false, session = opts.session }
+        local focus_after_send = M.config.focus_after_send == true
+        M.open_terminal {
+          focus = focus_after_send,
+          insert = focus_after_send,
+          session = opts.session,
+        }
       elseif ctx.thread_id then
         local input = build_input(prompt, opts, ctx)
         local prompt_text = input[1] and input[1].text or prompt
@@ -709,6 +744,9 @@ function M.open_terminal(opts)
   end
   local ctx = app_context(opts.session)
   local terminal_opts = vim.tbl_extend('force', { cwd = state.app.cwd or util.cwd() }, opts)
+  if M.config.app_server.dynamic_tools then
+    terminal_opts.mcp_server = mcp_bridge.launch_config()
+  end
   if terminal.open_remote(state.app.listen_url, nil, terminal_opts) then
     ctx.terminal_opened = true
   end

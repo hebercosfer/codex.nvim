@@ -122,7 +122,7 @@ return {
 
 Mappings are configurable through `setup({ keymaps = ... })`. Only the keys you set are overridden; omitted keys keep their defaults. Set an individual entry to `false` or `''` to skip that mapping, or set `keymaps = false` to install no mappings at all.
 
-Inside the Codex window the leader mappings are disabled, in normal and terminal mode alike; `<C-q>` is the way out.
+Inside the Codex window the leader mappings are disabled in normal and terminal mode alike; `<C-q>` is the way out. In the Codex terminal buffer, `<C-n>` and `<C-p>` switch to the next and previous sessions, wrapping at either end. These mappings are local to Codex, so your mappings elsewhere in Neovim are unchanged. While the Codex window is focused, these keys replace the TUI's line-edge shortcuts; use `<Home>` and `<End>` to move to the start or end of a line.
 
 | Mapping | Modes | Config key | Action |
 | --- | --- | --- | --- |
@@ -130,7 +130,11 @@ Inside the Codex window the leader mappings are disabled, in normal and terminal
 | `<leader>cC` | Normal | `keymaps.open` | Toggle the Codex pane. If sessions already exist, this does not create a new one. |
 | `<leader>cs` | Normal, Visual | `keymaps.send` | Send the prompt or selected range to the currently selected session. |
 | `<leader>cn` | Normal | `keymaps.session_new` | Open a new numbered Codex session. |
+| `<C-n>` | Codex terminal (Normal, Terminal) | `keymaps.session_next` | Select the next session, wrapping to the first. |
+| `<C-p>` | Codex terminal (Normal, Terminal) | `keymaps.session_previous` | Select the previous session, wrapping to the last. |
 | `<leader>cy` | Normal | `keymaps.yolo` | Open a new Codex session with YOLO mode. |
+| `<leader>ca` | Normal | `keymaps.diff_accept` | Accept and apply the current Codex diff. |
+| `<leader>cd` | Normal | `keymaps.diff_reject` | Reject and discard the current Codex diff. |
 | `<C-q>` | Codex terminal/buffer | `keymaps.quit` | Close the Codex pane. |
 | `<C-c>` | App Server buffer UI | `keymaps.interrupt` | Interrupt the active turn in buffer UI mode. In terminal UI mode, `<C-c>` is left to Codex itself. |
 
@@ -181,9 +185,13 @@ require('codex').setup({
     toggle = '<leader>cc',
     open = '<leader>cC',
     session_new = '<leader>cn',
+    session_next = '<C-n>',
+    session_previous = '<C-p>',
     yolo = '<leader>cy',
     quit = '<C-q>',
     send = '<leader>cs',
+    diff_accept = '<leader>ca',
+    diff_reject = '<leader>cd',
     interrupt = '<C-c>',
   },
   session_list = {
@@ -222,7 +230,22 @@ require('codex').setup({
 })
 ```
 
-Terminal launches always include `--config tui.vim_mode_default=true`, including newly created sessions and YOLO sessions.
+codex.nvim leaves Codex TUI's Vim-mode setting to the user's Codex configuration. The default App Server terminal window enters Neovim's terminal input mode when raised.
+
+When `backend = 'app_server'` and `app_server.dynamic_tools = true`, codex.nvim exposes its Neovim tools through a local MCP bridge in both terminal and buffer UI modes. The bridge starts with the App Server by default. Sessions opened through codex.nvim receive the socket path directly; the bridge also publishes a private registry record so a global Codex MCP server can discover it. This makes tools such as `openDiff` available without changing Codex's sandbox or approval settings, and Codex may still choose its own editing tools. Setting `dynamic_tools = false` disables the bridge.
+
+When `openDiff` presents a proposal, codex.nvim opens a native side-by-side Neovim diff in a temporary tab. Save the proposal with `:w` or `:CodexDiffAccept` to apply it; close with `:q` or `:cq`, or run `:CodexDiffReject`, to discard it. The temporary diff tab closes after either decision, and the Codex floating window is restored.
+
+The App Server bridge also publishes a private, short-lived registry entry while Neovim is running. To expose the same tools to Codex CLI sessions started outside codex.nvim, add a global MCP server entry and replace the example plugin path with your installation path:
+
+```toml
+[mcp_servers.codex_nvim]
+command = "nvim"
+args = ["--headless", "--clean", "-l", "/path/to/codex.nvim/lua/codex/mcp_stdio.lua"]
+enabled = true
+```
+
+The bundled helper discovers the active bridge by workspace. It requires codex.nvim's App Server backend to be running with `dynamic_tools = true`; the default configuration starts it automatically. Sessions opened through codex.nvim continue to receive their socket path directly and do not need this global entry. codex.nvim does not write this setting into the persistent Codex configuration.
 
 Set `app_server.ui = 'buffer'` to use the App Server transcript buffer for debugging. Set `backend = 'terminal'` to use the legacy raw `codex` terminal wrapper without App Server integration.
 

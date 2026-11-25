@@ -19,6 +19,10 @@ describe('keymaps configuration', function()
     eq('<leader>cn', keymaps.session_new)
     eq('<leader>cy', keymaps.yolo)
     eq('<leader>cs', keymaps.send)
+    eq('<leader>ca', keymaps.diff_accept)
+    eq('<leader>cd', keymaps.diff_reject)
+    eq('<C-n>', keymaps.session_next)
+    eq('<C-p>', keymaps.session_previous)
   end)
 
   it('keeps the defaults when keymaps is omitted', function()
@@ -66,13 +70,14 @@ describe('keymaps configuration', function()
 end)
 
 describe('keymaps setup', function()
-  local lhs_list = { '<leader>xc', '<leader>xs', '<leader>cc', '<leader>cC', '<leader>cn', '<leader>cy', '<leader>cs', '<leader>aC', '<leader>as' }
+  local lhs_list =
+    { '<leader>xc', '<leader>xs', '<leader>cc', '<leader>cC', '<leader>cn', '<leader>cy', '<leader>cs', '<leader>ca', '<leader>cd', '<leader>aC', '<leader>as' }
 
   -- plugin/codex.lua installs the defaults when the plugin loads, and setup_with reloads
   -- the module, which forgets what the old instance mapped. Clear them so every test starts clean.
   before_each(function()
     for _, lhs in ipairs(lhs_list) do
-      pcall(vim.keymap.del, { 'n', 't', 'v' }, lhs)
+      pcall(vim.keymap.del, { 'n', 't', 'v', 'x' }, lhs)
     end
   end)
 
@@ -95,7 +100,7 @@ describe('keymaps setup', function()
 
   after_each(function()
     for _, lhs in ipairs(lhs_list) do
-      pcall(vim.keymap.del, { 'n', 't', 'v' }, lhs)
+      pcall(vim.keymap.del, { 'n', 't', 'v', 'x' }, lhs)
     end
   end)
 
@@ -107,6 +112,15 @@ describe('keymaps setup', function()
     assert(not mapped '<leader>cs', 'default send should be replaced by the configured one')
     assert(mapped '<leader>cC', 'default open should stay mapped when only toggle and send are configured')
     assert(not mapped '<leader>aC', 'legacy <leader>a mappings should not be mapped')
+  end)
+
+  it('maps diff decisions by default without changing the new-session key', function()
+    setup_with(nil)
+    assert(mapped '<leader>cc', 'normal <leader>cc should still toggle Codex')
+    assert(vim.fn.maparg('<leader>cc', 'x') == '', 'visual <leader>cc should remain available to user config')
+    assert(mapped '<leader>cn', '<leader>cn should remain available for a new session')
+    assert(mapped '<leader>ca', '<leader>ca should accept a diff')
+    assert(mapped '<leader>cd', '<leader>cd should reject a diff')
   end)
 
   it('does not leave an overridden default behind after a later setup call on the same module', function()
@@ -131,6 +145,7 @@ describe('keymaps setup', function()
     for _, lhs in ipairs(lhs_list) do
       assert(not mapped(lhs), lhs .. ' should not be mapped when keymaps = false')
     end
+    assert(vim.fn.maparg('<leader>cc', 'x') == '', 'visual <leader>cc should not be mapped by the plugin')
   end)
 end)
 
@@ -162,6 +177,39 @@ describe('codex window keymaps', function()
   it('keeps leader mappings out of terminal mode', function()
     require('codex').setup { backend = 'terminal', autoinstall = false, panel = false, keymaps = { toggle = '<leader>xc' } }
     assert(vim.fn.maparg('<leader>xc', 't') == '', 'toggle should not be mapped in terminal mode')
+  end)
+
+  it('maps session cycling only inside the Codex terminal buffer', function()
+    local source_buf = vim.api.nvim_get_current_buf()
+    local global_rhs = function(mode, lhs)
+      for _, mapping in ipairs(vim.api.nvim_get_keymap(mode)) do
+        if mapping.lhs:lower() == lhs:lower() then
+          return mapping.rhs
+        end
+      end
+    end
+    local previous_global_next = global_rhs('n', '<C-n>')
+    local previous_global_previous = global_rhs('n', '<C-p>')
+
+    require('codex').setup { backend = 'terminal', autoinstall = false, panel = false }
+    vim.cmd 'CodexToggle'
+    local codex_buf = vim.api.nvim_get_current_buf()
+    local buffer_rhs = function(buf, mode, lhs)
+      for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(buf, mode)) do
+        if mapping.lhs:lower() == lhs:lower() then
+          return mapping.rhs
+        end
+      end
+    end
+
+    assert((buffer_rhs(codex_buf, 'n', '<C-n>') or ''):match 'cycle_session%(1%)', '<C-n> should select the next session in normal mode')
+    assert((buffer_rhs(codex_buf, 'n', '<C-p>') or ''):match 'cycle_session%(%-1%)', '<C-p> should select the previous session in normal mode')
+    assert((buffer_rhs(codex_buf, 't', '<C-n>') or ''):match 'cycle_session%(1%)', '<C-n> should select the next session in terminal mode')
+    assert((buffer_rhs(codex_buf, 't', '<C-p>') or ''):match 'cycle_session%(%-1%)', '<C-p> should select the previous session in terminal mode')
+    eq(true, buffer_rhs(source_buf, 'n', '<C-n>') == nil)
+    eq(true, buffer_rhs(source_buf, 'n', '<C-p>') == nil)
+    eq(true, previous_global_next == global_rhs('n', '<C-n>'))
+    eq(true, previous_global_previous == global_rhs('n', '<C-p>'))
   end)
 
   it('disables leader mappings inside the Codex window but keeps <C-q> to leave', function()

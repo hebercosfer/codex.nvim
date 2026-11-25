@@ -43,7 +43,7 @@ describe('toggle opens straight into insert mode', function()
     end
   end
 
-  local function setup_app_server(received)
+  local function setup_app_server(received, focus_after_send)
     vim.fn = setmetatable({
       executable = function()
         return 1
@@ -58,6 +58,7 @@ describe('toggle opens straight into insert mode', function()
       backend = 'app_server',
       autoinstall = false,
       panel = false,
+      focus_after_send = focus_after_send == true,
       app_server = { ui = 'terminal', auto_start = false },
     }
     local state = require 'codex.state'
@@ -92,5 +93,39 @@ describe('toggle opens straight into insert mode', function()
     local was_requested = record_startinsert()
     require('codex').toggle()
     assert(not was_requested(), 'closing the window should not enter insert mode')
+  end)
+
+  it('requests insert mode when focusing an existing app-server terminal', function()
+    local received = {}
+    setup_app_server(received)
+    require('codex').toggle()
+    vim.wait(1000, function()
+      return #received == 1
+    end, 10)
+
+    local was_requested = record_startinsert()
+    require('codex').focus()
+
+    eq(1, #received)
+    assert(was_requested(), 'focusing an existing Codex terminal should request insert mode')
+  end)
+
+  it('focuses Codex in insert mode after inserting a selection when configured', function()
+    local received = {}
+    setup_app_server(received, true)
+    require('codex').toggle()
+    vim.wait(1000, function()
+      return #received == 1
+    end, 10)
+
+    require('codex').close()
+    local was_requested = record_startinsert()
+    require('codex').send('selected text', { submit = false })
+
+    vim.wait(1000, function()
+      return was_requested()
+    end, 10)
+    eq(1, #received)
+    assert(was_requested(), 'focus_after_send should return the Codex terminal in insert mode')
   end)
 end)
