@@ -122,7 +122,7 @@ return {
 
 Mappings are configurable through `setup({ keymaps = ... })`. Only the keys you set are overridden; omitted keys keep their defaults. Set an individual entry to `false` or `''` to skip that mapping, or set `keymaps = false` to install no mappings at all.
 
-Inside the Codex window the leader mappings are disabled, in normal and terminal mode alike; `<C-q>` is the way out.
+Inside the Codex window the leader mappings are disabled in normal and terminal mode alike; `<C-q>` is the way out. In the Codex terminal buffer, `<C-n>` and `<C-p>` switch to the next and previous sessions, wrapping at either end. These mappings are local to Codex, so your mappings elsewhere in Neovim are unchanged. While the Codex window is focused, these keys replace the TUI's line-edge shortcuts; use `<Home>` and `<End>` to move to the start or end of a line.
 
 | Mapping | Modes | Config key | Action |
 | --- | --- | --- | --- |
@@ -130,6 +130,8 @@ Inside the Codex window the leader mappings are disabled, in normal and terminal
 | `<leader>cC` | Normal | `keymaps.open` | Toggle the Codex pane. If sessions already exist, this does not create a new one. |
 | `<leader>cs` | Normal, Visual | `keymaps.send` | Send the prompt or selected range to the currently selected session. |
 | `<leader>cn` | Normal | `keymaps.session_new` | Open a new numbered Codex session. |
+| `<C-n>` | Codex terminal (Normal, Terminal) | `keymaps.session_next` | Select the next session, wrapping to the first. |
+| `<C-p>` | Codex terminal (Normal, Terminal) | `keymaps.session_previous` | Select the previous session, wrapping to the last. |
 | `<leader>cy` | Normal | `keymaps.yolo` | Open a new Codex session with YOLO mode. |
 | `<leader>ca` | Normal | `keymaps.diff_accept` | Accept and apply the current Codex diff. |
 | `<leader>cd` | Normal | `keymaps.diff_reject` | Reject and discard the current Codex diff. |
@@ -183,6 +185,8 @@ require('codex').setup({
     toggle = '<leader>cc',
     open = '<leader>cC',
     session_new = '<leader>cn',
+    session_next = '<C-n>',
+    session_previous = '<C-p>',
     yolo = '<leader>cy',
     quit = '<C-q>',
     send = '<leader>cs',

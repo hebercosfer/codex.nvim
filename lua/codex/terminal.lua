@@ -178,6 +178,19 @@ local function create_clean_buf(config)
       end
     end
   end
+  local session_maps = {
+    { name = 'session_next', direction = 1, desc = 'Next Codex session' },
+    { name = 'session_previous', direction = -1, desc = 'Previous Codex session' },
+  }
+  for _, entry in ipairs(session_maps) do
+    local lhs = config.keymaps[entry.name]
+    if type(lhs) == 'string' and lhs ~= '' and lhs ~= config.keymaps.quit then
+      local rhs = '<cmd>lua require("codex.terminal").cycle_session(' .. entry.direction .. ')<CR>'
+      vim.api.nvim_buf_set_keymap(buf, 'n', lhs, rhs, { noremap = true, silent = true, desc = entry.desc })
+      vim.api.nvim_buf_set_keymap(buf, 't', lhs, [[<C-\><C-n>]] .. rhs, { noremap = true, silent = true, desc = entry.desc })
+    end
+  end
+
   vim.api.nvim_buf_set_keymap(buf, 't', '<CR>', [[<C-\><C-n><cmd>lua require('codex.terminal').submit()<CR>]], {
     noremap = true,
     silent = true,
@@ -1054,6 +1067,31 @@ function M.toggle()
   else
     M.open()
   end
+end
+
+function M.cycle_session(direction)
+  if direction ~= 1 and direction ~= -1 then
+    return false
+  end
+
+  local order = state.session_order or {}
+  if #order < 2 then
+    return false
+  end
+
+  local active_index
+  for index, id in ipairs(order) do
+    if id == state.active_session_id then
+      active_index = index
+      break
+    end
+  end
+  if not active_index then
+    return false
+  end
+
+  local next_index = ((active_index - 1 + direction) % #order) + 1
+  return M.select_session(order[next_index])
 end
 
 function M.select_session(id, opts)

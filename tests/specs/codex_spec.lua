@@ -873,6 +873,19 @@ describe('codex.nvim', function()
     eq(2, state.active_session_id)
     eq(state.win, vim.api.nvim_get_current_win())
     eq(false, vim.api.nvim_win_get_option(list_win, 'cursorline'))
+    assert(terminal.cycle_session, 'terminal session cycling should be available')
+    assert(terminal.cycle_session(1), 'next should select another session')
+    eq(1, state.active_session_id)
+    assert(terminal.cycle_session(-1), 'previous should select another session')
+    eq(2, state.active_session_id)
+    assert(terminal.cycle_session(1), 'next should wrap from the last session')
+    eq(1, state.active_session_id)
+    eq(false, terminal.cycle_session(0), 'unsupported directions should be ignored')
+    local active_session_id = state.active_session_id
+    state.active_session_id = 999
+    eq(false, terminal.cycle_session(1), 'cycling should be a no-op if the active session is missing')
+    terminal.select_session(active_session_id, { focus = false })
+    eq(active_session_id, state.active_session_id)
     mouse_win = nil
 
     terminal.select_session(1, { focus = false })
@@ -891,6 +904,8 @@ describe('codex.nvim', function()
 
     exits[second_job](second_job, 0)
     eq(1, #state.session_order)
+    eq(1, state.active_session_id)
+    eq(false, terminal.cycle_session(1), 'cycling should be a no-op with one session')
     eq(1, state.active_session_id)
     eq(first_buf, state.buf)
     eq(first_buf, vim.api.nvim_win_get_buf(state.win))

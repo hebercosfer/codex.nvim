@@ -39,6 +39,113 @@ describe('codex app-server support', function()
     eq('nvim', names.openFile.namespace)
   end)
 
+  it('routes App Server MCP requests through the Neovim tool registry', function()
+    local old_tools = package.loaded['codex.tools']
+    local old_bridge = package.loaded['codex.mcp_bridge']
+    local old_jsonrpc = package.loaded['codex.jsonrpc']
+    local old_process = package.loaded['codex.app_server_process']
+    local old_app_server = package.loaded['codex.app_server']
+    local old_state = package.loaded['codex.state']
+    package.loaded['codex.tools'] = {
+      register_all = function() end,
+      get_specs = function()
+        return { { name = 'threadTool' } }
+      end,
+      get_mcp_specs = function()
+        return { { name = 'mcpTool' } }
+      end,
+      handle_mcp = function(params, respond)
+        respond { name = params.name }
+      end,
+    }
+    local dispatch
+    package.loaded['codex.mcp_bridge'] = {
+      start = function(handler)
+        dispatch = handler
+        return '/tmp/codex-test.sock'
+      end,
+      stop = function() end,
+    }
+    local client = {
+      start = function()
+        return true
+      end,
+      request = function(_, method, _, callback)
+        if method == 'thread/start' then
+          callback(nil, { thread = { id = 'thread-1', sessionId = 'session-1' } })
+        else
+          callback(nil, {})
+        end
+      end,
+      notify = function() end,
+      stop = function() end,
+    }
+    local client_options
+    package.loaded['codex.jsonrpc'] = {
+      new = function(options)
+        client_options = options
+        return client
+      end,
+    }
+    package.loaded['codex.app_server_process'] = { stop = function() end }
+    package.loaded['codex.app_server'] = nil
+    package.loaded['codex.state'] = nil
+
+    local app_server = require 'codex.app_server'
+    test_cleanup = function()
+      app_server.stop()
+      package.loaded['codex.tools'] = old_tools
+      package.loaded['codex.mcp_bridge'] = old_bridge
+      package.loaded['codex.jsonrpc'] = old_jsonrpc
+      package.loaded['codex.app_server_process'] = old_process
+      package.loaded['codex.app_server'] = old_app_server
+      package.loaded['codex.state'] = old_state
+    end
+
+    app_server.setup({
+      cmd = { 'codex', '--verbose' },
+      model = 'gpt-test',
+      app_server = {
+        ui = 'buffer',
+        dynamic_tools = true,
+        listen = 'ws://127.0.0.1:45555',
+        enable_features = { 'feature-one', 'feature-two' },
+        service_name = 'codex.nvim',
+      },
+    }, 'test')
+
+    local started
+    app_server.start(function(ok)
+      started = ok
+    end)
+
+    assert(started, 'App Server should initialize')
+    eq(
+      'codex --verbose --config mcp_servers.codex_nvim.enabled=false app-server --listen ws://127.0.0.1:45555 --enable feature-one --enable feature-two',
+      table.concat(client_options.cmd, ' ')
+    )
+
+    local listed
+    dispatch('tools/list', {}, function(result)
+      listed = result
+    end)
+    eq(1, #listed.tools)
+    eq('mcpTool', listed.tools[1].name)
+
+    local called
+    dispatch('tools/call', { name = 'mcpTool' }, function(result)
+      called = result
+    end)
+    eq('mcpTool', called.name)
+
+    local error
+    dispatch('unknown/method', {}, function(_, err)
+      error = err
+    end)
+    eq(-32601, error.code)
+    eq('Method not found: unknown/method', error.message)
+  end)
+
   it('keeps the MCP bridge available in buffer UI when dynamic tools are enabled', function()
     local global_fn = vim.fn
     local cache_root = original_fn.tempname()
